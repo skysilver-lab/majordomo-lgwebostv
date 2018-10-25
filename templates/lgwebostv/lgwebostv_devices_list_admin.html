@@ -1,0 +1,61 @@
+﻿<!--# Область со списком устройств. #-->
+[#if RESULT#]
+   <!--# Если переданы сведения об устройствах, то выводим их в виде таблицы. #-->
+   <table align=center class="table table-hover">
+   <thead><tr>
+      <th>Название</th>
+      <th>IP-адрес / MAC</th>
+      <th>Сведения</th>
+      <th>Статус</th>
+      <th>&nbsp;</th>
+   </tr></thead>
+   <tbody>
+   [#begin RESULT#]
+   <!--# В цикле перебираем все записи из массива и формируем строки таблицы. #-->
+   <tr>
+      <td style="vertical-align:middle">
+         <b>[#TITLE#]</b>
+      </td>
+      <td style="vertical-align:middle">
+         [#IP#]<br>
+         [#if MAC!=""#]
+            [#MAC#]
+         [#endif#]
+      </td>
+      <td style="vertical-align:middle">
+         [#if MODEL!=""#]
+            [#MODEL#]<br>
+         [#else#]
+            &nbsp;
+         [#endif#]
+         [#if WEBOS_VER!=""#]
+            [#WEBOS_VER#]
+         [#else#]
+            &nbsp;
+         [#endif#]
+      </td>
+      <td style="vertical-align:middle">
+         [#if ONLINE!=""#]
+            [#if ONLINE==1#]
+               <span class="label label-success" title="ТВ в сети">Online</span>
+            [#else#]
+               <span class="label label-warning" title="ТВ не доступен">Offline</span>
+            [#endif#]
+         [#else#]
+            &nbsp;
+         [#endif#]
+      </td>
+      <td style="vertical-align:middle" width="1%" nowrap>
+         <div style="width:130px">
+            <a href="?view_mode=edit_lgwebostv_devices&id=[#ID#]" class="btn btn-default" title="Редактировать"><i class="glyphicon glyphicon-pencil"></i></a>
+            <a href="?view_mode=delete_lgwebostv_devices&id=[#ID#]" onClick="return confirm('<#LANG_ARE_YOU_SURE#>')" class="btn btn-default" title="Удалить"><i class="glyphicon glyphicon-remove"></i></a>
+         </div>
+      </td>
+   </tr>
+   [#end RESULT#]
+   </tbody>
+   </table>
+[#else RESULT#]
+   <!--# Если сведений об устройствах нет (устройства не добавлены), то выводим информационное сообщение. #-->
+   <div class="alert alert-warning" role="alert">Не обнаружено настроенных телевизоров. Добавьте телевизор вручную по IP-адресу. Убедитесь, что на телевизоре разрешено использование технологии <a href="https://www.lg.com/ru/support/product-help/CT20206007-1439377994106-others" target="_blank"><b>LG Connect Apps</b></a>.</div>
+[#endif RESULT#]

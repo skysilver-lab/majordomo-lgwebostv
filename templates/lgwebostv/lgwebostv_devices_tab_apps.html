@@ -1,0 +1,156 @@
+﻿<!--# Вкладка 'Приложения/источники'. #-->
+<br>
+<div class="panel-group" id="accordion" style="width:98%">
+   <div class="panel panel-info">
+      <div class="panel-heading">
+         <a data-toggle="collapse" data-parent="#accordion" href="#users_apps">Пользовательские приложения </a>
+      </div>
+      <div class="panel-body collapse" id="users_apps">
+         <div>
+            [#if APPS_USERS!=""#]
+            <table class="table table-hover" style="margin-bottom: 5px;">
+               <thead><tr>
+                  <th style="width:40px">&nbsp;</th>
+                  <th style="width:300px">ID приложения</th>
+                  <th>Название</th>
+                  <!--#<th>Category</th>#-->
+                  <!--#<th>Icon</th>#-->
+               </tr></thead>
+               <tbody>
+               [#begin APPS_USERS#]
+               <tr>
+                  <td style="vertical-align:middle"><button class="btn btn-success" [#if "<#ONLINE#>"!=1 || "<#TOKEN#>"==""#]disabled[#endif#] onclick="launchApp('[#app_id#]');" title="Запустить приложение"><i class="glyphicon glyphicon-flash"></i></button></td>
+                  <td style="vertical-align:middle" nowrap>[#app_id#]</td>
+                  <td style="vertical-align:middle">
+                     [#app_title#]
+                     <!--
+                     #<br>
+                     <a href="[#app_icon#]" style="font-size: 10px;" target="_blank">[#app_icon#]</a><br>
+                     <a href="[#app_miniicon#]" style="font-size: 10px;" target="_blank">[#app_miniicon#]</a>
+                     #-->
+                  </td>
+                  <!--#<td style="vertical-align:middle">[#category#]</td>#-->
+                  <!--#<td style="vertical-align:middle"><a href="[#app_icon#]">[#app_icon#]</a><br>
+                  <a href="[#app_miniicon#]">[#app_miniicon#]</a></td>#-->
+               </tr>
+               [#end APPS_USERS#]
+               </tbody>
+            </table>
+            [#else#]
+            <!--# Если сведений о приложениях нет, то выводим информационное сообщение. #-->
+            <div class="alert alert-warning" role="alert">Нет сведений о доступных приложения/источниках.</div>
+            [#endif#]
+         </div>
+      </div>
+   </div>
+   <div class="panel panel-info">
+      <div class="panel-heading">
+         <a data-toggle="collapse" data-parent="#accordion" href="#inputs_apps">Источники (входы)</a>
+      </div>
+      <div class="panel-body collapse" id="inputs_apps">
+         <div>
+            [#if APPS_INPUTS!=""#]
+            <table class="table table-hover" style="margin-bottom: 5px;">
+               <thead><tr>
+                  <th style="width:40px">&nbsp;</th>
+                  <th style="width:300px">ID приложения</th>
+                  <th>Название</th>
+                  <!--#<th>Category</th>#-->
+                  <!--#<th>Icon</th>#-->
+               </tr></thead>
+               <tbody>
+               [#begin APPS_INPUTS#]
+               <tr>
+                  <td style="vertical-align:middle"><button class="btn btn-success" [#if "<#ONLINE#>"!=1 || "<#TOKEN#>"==""#]disabled[#endif#] onclick="launchApp('[#app_id#]');" title="Запустить приложение"><i class="glyphicon glyphicon-flash"></i></button></td>
+                  <td style="vertical-align:middle" nowrap>[#app_id#]</td>
+                  <td style="vertical-align:middle">
+                     [#app_title#]
+                     <!--#<br>
+                     <a href="[#app_icon#]" style="font-size: 10px;" target="_blank">[#app_icon#]</a><br>
+                     <a href="[#app_miniicon#]" style="font-size: 10px;" target="_blank">[#app_miniicon#]</a>
+                     #-->
+                  </td>
+                  <!--#<td style="vertical-align:middle">[#category#]</td>#-->
+                  <!--#<td style="vertical-align:middle"><a href="[#app_icon#]">[#app_icon#]</a><br>
+                  <a href="[#app_miniicon#]">[#app_miniicon#]</a></td>#-->
+               </tr>
+               [#end APPS_INPUTS#]
+               </tbody>
+            </table>
+            [#else#]
+            <!--# Если сведений о приложениях нет, то выводим информационное сообщение. #-->
+            <div class="alert alert-warning" role="alert">Нет сведений о доступных приложения/источниках.</div>
+            [#endif#]
+         </div>
+      </div>
+   </div>
+   <div class="panel panel-info">
+      <div class="panel-heading">
+         <a data-toggle="collapse" data-parent="#accordion" href="#others_apps">Системные приложения</a>
+      </div>
+      <div class="panel-body collapse" id="others_apps">
+         <div>
+            [#if APPS_OTHERS!=""#]
+            <table class="table table-hover" style="margin-bottom: 5px;">
+               <thead><tr>
+                  <th style="width:40px">&nbsp;</th>
+                  <th style="width:180px">ID приложения</th>
+                  <th>Название</th>
+                  <!--#<th>Category</th>#-->
+                  <!--#<th>Icon</th>#-->
+               </tr></thead>
+               <tbody>
+               [#begin APPS_OTHERS#]
+               <tr>
+                  <td style="vertical-align:middle"><button class="btn btn-success" [#if "<#ONLINE#>"!=1 || "<#TOKEN#>"==""#]disabled[#endif#] onclick="launchApp('[#app_id#]');" title="Запустить приложение"><i class="glyphicon glyphicon-flash"></i></button></td>
+                  <td style="vertical-align:middle" nowrap>[#app_id#]</td>
+                  <td style="vertical-align:middle">
+                     [#app_title#]
+                     <!--#<br>
+                     <a href="[#app_icon#]" style="font-size: 10px;" target="_blank">[#app_icon#]</a><br>
+                     <a href="[#app_miniicon#]" style="font-size: 10px;" target="_blank">[#app_miniicon#]</a>
+                     #-->
+                  </td>
+                  <!--#<td style="vertical-align:middle">others</td>#-->
+                  <!--#<td style="vertical-align:middle"><a href="[#app_icon#]">[#app_icon#]</a><br>
+                  <a href="[#app_miniicon#]">[#app_miniicon#]</a></td>#-->
+               </tr>
+               [#end APPS_OTHERS#]
+               </tbody>
+            </table>
+            [#else#]
+            <!--# Если сведений о приложениях нет, то выводим информационное сообщение. #-->
+            <div class="alert alert-warning" role="alert">Нет сведений о доступных приложения/источниках.</div>
+            [#endif#]
+         </div>
+      </div>
+   </div>
+</div>
+<br>
+<div style="width:96%">
+   Запуск <i>приложений</i> и выбор <i>источника</i> (входа) выполняется с помощью метрики <b>state</b> и привязанного к ней <i><b>свойства объекта</b></i> путем записи в это свойство идентификатора (ID) приложения (источника) через функцию <u>setGlobal()</u> или иным способом.<br><br>
+   Пример:<br>
+   <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; background: #ffffff; line-height: 125%">
+setGlobal(<span style="color: #BB4444">&#39;TV1.state&#39;</span>, <span style="color: #BB4444">&#39;com.webos.app.livetv&#39;</span>);
+<span style="color: #008800; font-style: italic">// Или</span>
+sg(<span style="color: #BB4444">&#39;TV1.state&#39;</span>, <span style="color: #BB4444">&#39;youtube.leanback.v4&#39;</span>);</pre></div>
+</div>
+<br>
+<div>
+   <a href="?" class="btn btn-default"><#LANG_STRING_BACK#></a>
+</div>
+
+<script type="text/javascript">
+
+   function launchApp(app_id){
+      var url="/ajax/lgwebostv.html?op=send_command&command=app&value="+app_id+"&id="+<#ID#>;
+      $.ajax({
+         url: url,
+         cache: false,
+         success: function(html){
+            //
+         }
+      });
+   }
+
+</script>

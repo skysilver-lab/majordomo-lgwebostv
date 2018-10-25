@@ -1,0 +1,98 @@
+<!--# Главная страница модуля в Панели управления. #-->
+[#if VIEW_MODE=""#]
+   <!--# Верхняя строка с кнопоками 'Настройки', 'Поиск', 'Добавить', 'О модуле' и инфо о статусе цикла. #-->
+   <div>
+      <!--# Логотип. #-->
+      <img src="../templates/lgwebostv/logo.png"  width="30" height="30">
+      &nbsp;&nbsp;&nbsp;
+      <!--# Кнопка 'Настройки'. #-->
+      <a class="btn btn-default" href="#api_settings" data-toggle="collapse"><i class="glyphicon glyphicon-cog"></i> Настройки</a>
+      &nbsp;&nbsp;&nbsp;
+      <!--# Кнопка 'Добавить'. #-->
+      <a href="?view_mode=addnew_lgwebostv_devices" class="btn btn-default" title="Ручное добавление ТВ"><i class="glyphicon glyphicon-plus"></i></a>
+      &nbsp;&nbsp;&nbsp;
+      <!--# Индикатор статуса цикла. #-->
+      [#if CYCLERUN==1#]
+         <span class="label label-success" title="Статус цикла">Цикл запущен</span>
+      [#else#]
+         <span class="label label-danger" title="Статус цикла">Цикл остановлен</span>
+      [#endif#]
+      <!--# Кнопка 'О модуле'. #-->
+      <div class="float-right">&nbsp;&nbsp;&nbsp;&nbsp;</div>
+      <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#about">О модуле&nbsp;&nbsp;<span class="glyphicon glyphicon-info-sign icon-white"></span></button>
+      <!--# Кнопка 'Справка'. #-->
+      <div class="float-right">&nbsp;&nbsp;&nbsp;</div>
+      <a href="?view_mode=show_help" class="btn btn-default btn-sm float-right" title="Справка"><i class="glyphicon glyphicon-question-sign"></i></a>
+   </div>
+
+   <!--# Область настроек. #-->
+   [#inc settings.html#]
+
+   <!--# Область со списком устройств. #-->
+   [#inc lgwebostv_devices_list_admin.html#]
+
+   <!--# Модальное окно со сведениями о модуле. #-->
+   [#inc about.html#]
+[#endif#]
+
+<!--# Интерфейс ручного добавления устройства. #-->
+[#if VIEW_MODE="addnew_lgwebostv_devices"#]
+   [#inc lgwebostv_devices_addnew.html#]
+[#endif#]
+
+<!--# Справка по модулю. #-->
+[#if VIEW_MODE="show_help"#]
+   [#inc ./help/help_ru.html#] 
+[#endif#]
+
+<!--# Интерфейс редактирования настроек устройства и просмотра его данных (вкладки). #-->
+[#if VIEW_MODE="edit_lgwebostv_devices"#]
+   [#if ID!=""#]
+      [#if TITLE!=""#]<h4>[#TITLE#]</h4>[#endif#]
+      <!--# Вкладки. #-->
+      <ul class="nav nav-tabs">
+         <!--# Вкладка 'Общее'. #-->
+         <li [#if TAB=""#] class="active"[#endif#]>
+            <a id="general-tab-link-<#ID#>" href="?view_mode=<#VIEW_MODE#>&id=<#ID#>&tab="><#LANG_GENERAL#></a>
+         </li>
+         <!--# Вкладка 'Данные'. #-->
+         <li [#if TAB="data"#] class="active"[#endif#]>
+            <a href="?view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=data"><#LANG_DATA#></a>
+         </li>
+         [#if IP!="" && TOKEN!=""#]
+         <!--# Вкладка 'Каналы'. #-->
+         <li [#if TAB="channels"#] class="active"[#endif#]>
+            <a href="?view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=channels">Каналы</a>
+         </li>
+         <!--# Вкладка 'Приложения/источники'. #-->
+         <li [#if TAB="apps"#] class="active"[#endif#]>
+            <a href="?view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=apps">Приложения/источники</a>
+         </li>
+         [#endif#]
+         <!--# Вкладка 'Справка'. #-->
+         <li [#if TAB=="help"#] class="active"[#endif#]>
+            <a href="?view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=help">Справка</a>
+         </li> 
+      </ul>
+   [#endif#]
+   [#if TAB=""#]
+      <!--# Содержимое вкладки 'Общее'. #-->
+      [#inc lgwebostv_devices_tab_general.html#]
+   [#endif#]
+   [#if TAB="data"#]
+      <!--# Содержимое вкладки 'Данные'. #-->
+      [#inc lgwebostv_devices_tab_data.html#]
+   [#endif#]
+   [#if TAB="channels"#]
+      <!--# Содержимое вкладки 'Каналы'. #-->
+      [#inc lgwebostv_devices_tab_data.html#]
+   [#endif#]
+   [#if TAB="apps"#]
+      <!--# Содержимое вкладки 'Приложения/источники'. #-->
+      [#inc lgwebostv_devices_tab_apps.html#]
+   [#endif#]
+   [#if TAB="help"#]
+      <!--# Содержимое вкладки 'Справка'. #-->
+      [#inc ../.<#HELP_PATH#>#] 
+   [#endif#] 
+[#endif#]

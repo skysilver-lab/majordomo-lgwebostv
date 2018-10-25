@@ -1,0 +1,137 @@
+[#if VIEW_MODE="show_help"#]
+   <h4>Справка</h4>
+[#else#]
+   <div>
+      <table border="0" cellpadding="8">
+         <tr>
+            <td rowspan="2" style="width:65px">
+               <img src="../templates/lgwebostv/logo.png" height="32px">
+            </td>
+            <td style="height:33px;vertical-align:middle">IP: <b>[#IP#]</b></td>
+            <td style="height:33px;vertical-align:middle">Системный ID: <span class="badge">[#ID#]</span></td>
+         </tr>
+      </table>
+   </div>
+[#endif#]
+<div class="panel-group" id="accordion" style="width:98%">
+   <div class="panel panel-info">
+      <div class="panel-heading">
+         <a data-toggle="collapse" data-parent="#accordion" href="#general_help">Общие сведения</a>
+      </div>
+      <div class="panel-body collapse" id="general_help">
+         <div style="width:98%">
+            <p>Модуль предназначен для интеграции смарт-телевизоров <strong>LG</strong> на платформе <strong>webOS</strong>.</p>
+            <p><strong>Возможности модуля:</strong></p>
+            <ul>
+            <li>ручное добавление ТВ по IP адресу;</li>
+            <li>поддержка нескольких ТВ;</li>
+            <li>определение доступности ТВ с помощью периодического tcp ping на порт tcp/3000;</li>
+            <li>перевод ТВ в режим сопряжения и получение токена для аутентификации;</li>
+            <li>получение статуса ТВ в реальном времени (при установленном соединении);</li>
+            <li>управление ТВ (каналы, источники, приложения, громкость, уведомления, выключение).</li>
+            </ul>
+            <p>Перед началом работы с ТВ средствами модуля убедитесь, что в настройках ТВ разрешено использование технологии <strong><a href="https://www.lg.com/ru/support/product-help/CT20206007-1439377994106-others" target="_blank" rel="noopener" title="LG Connect Apps">LG Connect Apps</a></strong>. А также проверьте управление ТВ из официального приложения для Android или iOS.</p>
+            <p>Взаимодействие с ТВ происходит через постоянное <strong><em>tcp-соединение</em></strong> в режиме клиента на порт <strong>3000</strong>. Внутри<strong><em> tcp-сокета</em></strong> используется протокол <em><strong>Websocket</strong></em>, поверх которого уже идет обмен API-сообщениями в формате <strong><em>JSON</em></strong>.<br /><br />Для взаимодействия модуля и его цикла используется <em><strong>tcp-сокет</strong></em> на порту <strong>3005</strong>. Если порт <strong>tcp/3005</strong> занят другим сервисом/приложением, то его можно изменить в файле <em>./modules/lgwebostv/lgwebostv.class.php</em>. Позже смена порта служебного сокета цикла будет вынесена в настройки модуля.</p>
+            <p>Модуль реализует классическую концепцию <strong>MajorDoMo</strong> для взаимодействия с пользователем через <strong>метрики</strong> и привязанные к ним <strong>свойства </strong>и/или <strong>методы объекта</strong>. Объекты, свойства и методы создаются пользователем самостоятельно. Имеется возможность привязки Простых устройств на перспективу, если появится новый тип ПУ "Смарт ТВ".</p>
+            <p>Обновление значения свойства и вызов метода выполняется только, если старое значение метрики не равно новому, а также только при получении ответного сообщения от самого ТВ, а не в момент отправки команды. Таким образом можно организовать полноценную обратную связь с ТВ и быть уверенным о том, прошла команда или нет.</p>
+            <p>В привязанный метод передаются следующие параметры - название метрики&nbsp;<em>$params['PROPERTY']</em>,&nbsp;текущее значение&nbsp;<em>$params['NEW_VALUE']</em> и предыдущее значение&nbsp;<em>$params['OLD_VALUE']</em>.</p>
+            <p>Для определения перехода ТВ из выключенного состояни во включенное используется <strong>периодический пинг</strong> (по умолчанию каждые 60 секунд). Поэтому имеет место быть определенная задержка между моментом включения ТВ с пульта и обновлением статуса ТВ в модуле. Если ТВ включается средствами <strong>MajorDoMo</strong> (например через ИК-передатчик Broadlink или Xiaomi), то можо форсировать обновление статуса ТВ отправкой команды <strong>ping</strong> через метрику <strong>command</strong>.</p>
+         </div>
+      </div>
+   </div>
+   <div class="panel panel-info">
+      <div class="panel-heading">
+         <a data-toggle="collapse" data-parent="#accordion" href="#metrics_help">Описание метрик</a>
+      </div>
+      <div class="panel-body collapse" id="metrics_help">
+         <div style="width:900px">
+            <table class="table table-hover" align="left" style="margin-bottom: 5px;">
+               <thead>
+                  <th>Метрика</th><th>Описание</th><th style="width:180px">Значения</th><th nowrap>Чтение/запись</th>
+               </thead>
+               <tbody>
+                  <tr><td><b>online</b></td><td>Доступность ТВ (онлайн/оффлайн).</td><td>1 и 0</td><td>Чтение</td></tr>
+                  <tr><td><b>command</b></td><td>Отправка команды на ТВ (см. раздел Команды).</td><td>Команда</td><td>Запись</td></tr>
+                  <tr><td><b>command_raw</b></td><td>Отправка "сырой" API-команды на ТВ без обработки модулем.
+                  Например, <i>ssap://system/getSystemInfo</i> и т. п.</td><td>api-команда</td><td>Запись</td></tr>
+                  <tr><td><b>notification</b></td><td>Вывод текстового уведомления на экран ТВ.</td><td>Текст уведомления</td><td>Запись</td></tr>
+                  <tr><td><b>power</b></td><td>Текущий статус и управление питанием ТВ (поддерживается только выключение).</td><td>1 и 0</td><td nowrap>Чтение и запись</td></tr>
+                  <tr><td><b>volume</b></td><td>Текущий уровень и управление громкостью ТВ.</td><td>От 1 до 100%</td><td>Чтение и запись</td></tr>
+                  <tr><td><b>muted</b></td><td>Текущий статус и управление режимом "без звука" (включить, выключить)</td><td>1 и 0</td><td>Чтение и запись</td></tr>
+                  <tr><td><b>state</b></td><td>Текущее состояние ТВ и его переключение. Базовая метрика, определяющая текущее запущенное приложение или выбранный источник (вход). Содержит идентификатор приложения или источника в соответствии с API webOS (см. вкладку "Приложения/источники"). Например, <i>com.webos.app.hdmi1</i> и т. п.</td><td>ID</td><td>Чтение и запись</td></tr>
+
+                  <tr><td><b>channel_number</b></td><td>Номер текущего канала и переключение каналов по их номеру.</td><td>Номер канала</td><td>Чтение и запись</td></tr>
+                  <tr><td><b>channel_name</b></td><td>Название текущего канала и переключение каналов по их названию.</td><td>Название канала</td><td>Чтение и запись</td></tr>
+                  <tr><td><b>channel_id</b></td><td>Уникальный внутренний идентификатор текущего канала и переключение каналов по этому идентификатору. Например, <i>1_36_11_11_11_2010_8835</i> и т. п.</td><td>ID канала</td><td>Чтение и запись</td></tr>
+                  <tr><td><b>channels_count</b></td><td>Общее количество каналов для всех режимов работы тюнера.</td><td>Количество каналов</td><td>Чтение</td></tr>
+                  <tr><td><b>channel_type</b></td><td>Текущий режим работы тюнера ТВ (наземное аналоговое, наземное цифровое, кабельное аналоговое, кабельное цифровое и спутниковое ТВ-вещания, а также аналогичные для радиовещания при их наличии).</td><td>Terrestrial Analog TV, <br>Terrestrial Digital TV, <br>Cable Analog TV, <br>Cable Digital TV, <br>Satellite Digital TV, <br>Terrestrial Analog Radio, <br>Terrestrial Digital Radio</td><td>Чтение и запись</td></tr>
+                  
+                  <tr><td><b>error</b></td><td>Сведения о последней возникшей ошибке.</td><td>Текст ошибки</td><td>Чтение</td></tr>
+               </tbody>
+               </table> 
+         </div>
+      </div>
+   </div>
+   <div class="panel panel-info">
+      <div class="panel-heading">
+         <a data-toggle="collapse" data-parent="#accordion" href="#commands_help">Команды</a>
+      </div>
+      <div class="panel-body collapse" id="commands_help">
+         <div style="width:900px">
+            <div>
+               Отправка <i>команд</i> на ТВ выполняется с помощью метрики <b>command</b> и привязанного к ней <i><b>свойства объекта</b></i> путем записи в это свойство <i>команды</i> через функцию <u>setGlobal()</u> или иным способом. Возможные <i>команды</i> приведены в таблице ниже. <br><br>
+               Пример:<br>
+               <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; background: #ffffff; line-height: 125%">setGlobal(<span style="color: #BB4444">&#39;TV1.command&#39;</span>, <span style="color: #BB4444">&#39;volumeUp&#39;</span>);<span style="color: #008800; font-style: italic"><br>// Или<br></span>sg(<span style="color: #BB4444">&#39;TV1.command&#39;</span>, <span style="color: #BB4444">&#39;powerOff&#39;</span>);</pre></div>
+            </div>
+            <br>
+            <table class="table table-hover" align="left" style="margin-bottom: 5px;">
+               <thead>
+                  <th>Команда</th><th>Описание</th>
+               </thead>
+               <tbody>
+                  <tr><td><b>ping</b></td><td>Проверка доступности ТВ с помощью tcp ping порта 3000.</td>
+                  <tr><td><b>powerOff</b></td><td>Выключение ТВ.</td>
+                  <tr><td><b>volumeUp</b></td><td>Увеличить громкость.</td>
+                  <tr><td><b>volumeDown</b></td><td>Уменьшить громкость.</td>
+                  <tr><td><b>channelUp</b></td><td>Следующий канал.</td>
+                  <tr><td><b>channelDown</b></td><td>Предыдущий канал.</td>
+               </tbody>
+            </table>
+         </div>
+      </div>
+   </div>
+   <div class="panel panel-info">
+      <div class="panel-heading">
+         <a data-toggle="collapse" data-parent="#accordion" href="#httpapi_help">HTTP API</a>
+      </div>
+      <div class="panel-body collapse" id="httpapi_help">
+         <div style="width:98%">
+            <div>
+               В модуле есть простейшее <b>HTTP API</b> для отправки команд через <b>GET</b>-запросы. В первую очередь оно реализовано и используется для служебных целей модуля, поэтому не покрывает весь функционал модуля. Но при необходимости может использоваться и пользователем.<br><br>
+               Базовая <b>API</b>-ссылка:&nbsp;&nbsp;<b>/ajax/lgwebostv.html?op=</b><br><br>
+               Возможные значения аргумента <b>op</b> - <b><i>send_command</i></b>, <b><i>ping</i></b>, <b><i>start_pairing</i></b>, <b><i>get_token</i></b>.<br>
+               <br>1. <b><i>send_command</i></b><br>
+               &nbsp;&nbsp;&nbsp;&nbsp;Отправка команд на ТВ по аналогии с управлением через привязанные к метрикам свойства объекта в интерфейсе модуля.<br>
+               &nbsp;&nbsp;&nbsp;&nbsp;<b>/ajax/lgwebostv.html?op=send_command&command=<span style="color: #008800;">[METRIC_TITLE]</span>&value=<span style="color: #008800;">[METRIC_VALUE]</span>&id=<span style="color: #008800;">[TV_ID]</span></b><br>
+               <br>2. <b><i>ping</i></b><br>
+               &nbsp;&nbsp;&nbsp;&nbsp;Проверка доступности ТВ с помощью tcp ping порта 3000.<br>
+               &nbsp;&nbsp;&nbsp;&nbsp;<b>/ajax/lgwebostv.html?op=ping&id=<span style="color: #008800;">[TV_ID]</span>&ip=<span style="color: #008800;">[TV_IP]</span></b><br>
+               <br>3. <b><i>start_pairing</i></b><br>
+               &nbsp;&nbsp;&nbsp;&nbsp;Запуск режима сопряжения модуля и ТВ для получения токена.<br>
+               &nbsp;&nbsp;&nbsp;&nbsp;<b>/ajax/lgwebostv.html?op=start_pairing&id=<span style="color: #008800;">[TV_ID]</span></b><br>
+               <br>4. <b><i>get_token</i></b><br>
+               &nbsp;&nbsp;&nbsp;&nbsp;Получение токена ТВ из таблицы модуля в базе данных.<br>
+               &nbsp;&nbsp;&nbsp;&nbsp;<b>/ajax/lgwebostv.html?op=get_token&id=<span style="color: #008800;">[TV_ID]</span></b><br>
+               <br>
+               <span style="color: #008800;"><b>[METRIC_TITLE]</b></span> - название метрики (power, volume, app и т. д.)<br>
+               <span style="color: #008800;"><b>[METRIC_VALUE]</b></span> - значение метрики<br>
+               <span style="color: #008800;"><b>[TV_ID]</b></span> - внутренний идентификатор ТВ в модуле<br>
+               <span style="color: #008800;"><b>[TV_IP]</b></span> - IP-адрес ТВ<br>
+         </div>
+      </div>
+   </div>
+</div>
+<br>
+<div>
+   <a href="?data_source=<#DATA_SOURCE#>" class="btn btn-default"><#LANG_STRING_BACK#></a>
+</div>

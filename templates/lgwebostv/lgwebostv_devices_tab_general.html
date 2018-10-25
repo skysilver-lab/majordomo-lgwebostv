@@ -1,0 +1,200 @@
+﻿<!--# Вкладка 'Общее'. #-->
+<form action="?" method="post" enctype="multipart/form-data" name="frmEdit" class="form-horizontal">
+   <fieldset>
+      [#if OK#]
+         <div class="alert alert-success" role="alert"><#LANG_DATA_SAVED#></div>
+      [#endif OK#]
+      [#if ERR#]
+         <div class="alert alert-danger" role="alert"><#LANG_FILLOUT_REQURED#></div>
+      [#endif ERR#]
+      <!--# Название устройства (обязательное поле). #-->
+      <div class="form-group">
+         <label class="col-lg-3 control-label"[#if ERR_TITLE#] style="color:red;font-weight:bold"[#endif#]>
+            <#LANG_TITLE#> (*):
+         </label>
+         <div class="col-lg-4"><input type="text" class="form-control" name="title" value="[#TITLE#]" id="title"[#if ERR_TITLE#] placeholder="Укажите название устройства!"[#endif#]></div>
+      </div>
+      <!--# IP-адрес устройства (обязательное поле). #-->
+      <div class="form-group">
+         <label class="col-lg-3 control-label"[#if ERR_IP#] style="color:red;font-weight:bold"[#endif#]>
+            IP (*):
+         </label>
+         <div class="col-lg-4"><input type="text" class="form-control" name="ip" value="[#IP#]" id="ip"[#if ERR_IP#] placeholder="Укажите IP-адрес устройства!"[#endif#]></div>
+      </div>
+      <!--# Токен устройства. #-->
+      <div class="form-group">
+         <label class="col-lg-3 control-label">
+            Токен:
+         </label>
+         <div class="col-lg-4"><input type="text" class="form-control" name="token" value="[#TOKEN#]" id="token" placeholder="Требуется токен"></div>
+         [#if TOKEN==""#]
+         <div>
+            <span data-toggle="modal" data-target="#get_token" class="btn btn-default [#if ONLINE!=1#]disabled[#endif#]" title="Получить токен" id="[#IP#]">Получить</span>
+         </div>
+         [#endif#]
+      </div>
+      <!--# Модель ТВ. #-->
+      [#if MODEL!=""#]
+      <div class="form-group">
+         <label class="col-lg-3 control-label">Модель:</label>
+         <div class="col-lg-4" style="padding: 5px 10px 0px 15px;">
+            [#MODEL#]
+         </div>
+      </div>
+      [#endif MODEL#]
+      <!--# Версия webOS. #-->
+      [#if WEBOS_VER!=""#]
+      <div class="form-group">
+         <label class="col-lg-3 control-label">Версия webOS:</label>
+         <div class="col-lg-4" style="padding: 5px 10px 0px 15px;">
+            [#WEBOS_VER#]
+         </div>
+      </div>
+      [#endif WEBOS_VER#]
+      <!--# MAC-адрес ТВ. #-->
+      [#if MAC!=""#]
+      <div class="form-group">
+         <label class="col-lg-3 control-label">MAC:</label>
+         <div class="col-lg-4" style="padding: 5px 10px 0px 15px;">
+            [#MAC#]
+         </div>
+      </div>
+      [#endif MAC#]
+      <div class="form-group">
+         <div class="col-lg-offset-3 col-lg-4">
+            <button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_SUBMIT#></button>
+            <a href="?" class="btn btn-default "><#LANG_STRING_BACK#></a>
+            <input type="hidden" name="id" value="<#ID#>">
+            <input type="hidden" name="view_mode" value="<#VIEW_MODE#>">
+            <input type="hidden" name="mode" value="update">
+            <input type="hidden" name="tab" value="<#TAB#>">
+         </div>
+      </div>
+   </fieldset>
+</form>
+
+[#if TOKEN=="" && ONLINE==1#]
+<div class="modal fade" id="get_token" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal-dialog">
+      <div class="modal-content">
+         <div class="modal-header">
+            <button class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only"></span></button>
+            <b>Сопряжение с ТВ</b>
+         </div>
+         <div class="modal-body">
+            <div>
+               Для начала сопряжения с ТВ нажмите кнопку <b>Старт</b>. На экране ТВ повится сообщение с запросом на подтверждение сопряжения с модулем.
+               Подтвердите сопряжение, нажав на кнопку <b>ДА</b>.
+            </div>
+            <br>
+            <div>
+               <button class="btn btn-primary" onclick="startPairing();">Старт</span></button>&nbsp;&nbsp;&nbsp;<b><i id="get_token_timer"></i></b>
+            </div>
+            <br>
+            <div>
+               <pre class="pre-scrollable" id="get_token_tv_log" style="word-wrap: break-word;"></pre>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+<script type="text/javascript">
+
+   function startPairing() {
+
+      var url="/ajax/lgwebostv.html?op=start_pairing&id=[#ID#]";
+
+      Data = new Date();
+      Hour = ('0' + Data.getHours()).slice(-2);
+      Minutes = ('0' + Data.getMinutes()).slice(-2);
+      Seconds = ('0' + Data.getSeconds()).slice(-2);
+
+      $("#get_token_tv_log").html('');
+      //$('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' '+url+'<br>');
+      $('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' TB IP - [#IP#], ID - [#ID#]<br>');
+
+      $.ajax({
+         url: url,
+         cache: false,
+         success: function(html){
+            //$('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' '+html+'<br>');
+            $('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' Начало сопряжения.<br>');
+            if ($("#get_token_timer").html()=='') {
+               $("#get_token_timer").html('60');
+               setTimeout('getToken()', 1000);
+            }
+         }
+      });
+   }
+
+   function getToken() {
+      var timer = document.getElementById('get_token_timer');
+      var url="/ajax/lgwebostv.html?op=get_token&id=[#ID#]";
+
+      Data = new Date();
+      Hour = ('0' + Data.getHours()).slice(-2);
+      Minutes = ('0' + Data.getMinutes()).slice(-2);
+      Seconds = ('0' + Data.getSeconds()).slice(-2);
+
+      timer.innerHTML--;
+
+      //$('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' '+url+'<br>');
+
+      if (timer.innerHTML == 0 || timer.innerHTML < 0) {
+         $('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' Время сопряжения вышло.<br>');
+         $('#get_token_timer').html('');
+         setTimeout(function(){}, 1000);
+      } else {
+         $.ajax({
+            url: url,
+            cache: false,
+            success: function(html){
+               //$('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' '+html+'<br>');
+               var resp = tryParseJSON(html);
+               if (resp !== false) {
+                  if (typeof resp.error === 'undefined') {
+                     //$('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' '+resp.token+'<br>');
+                     if ((typeof resp.token !== 'undefined') && (resp.token !== '')) {
+                        $('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' Токен успешно получен.<br>');
+                        $('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' '+resp.token+'<br>');
+                        timer.innerHTML = 0;
+                        $('#get_token_timer').html('');
+                        $('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' Сопряжение завершено.<br>');
+                     }
+                  } else if ((typeof resp.error !== 'undefined') && (resp.error == 'Token not found')) {
+                     //$('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' Ошибка - '+resp.error+'<br>');
+                     setTimeout('getToken()', 1000);
+                  }
+               } else {
+                  $('#get_token_tv_log').append(Hour+":"+Minutes+":"+Seconds+' Что-то пошло не так...<br>');
+                  $('#get_token_timer').html('');
+                  setTimeout(function(){}, 1000);
+               }
+            }
+         });
+      }
+   }
+
+   $("#get_token").on("hidden.bs.modal", function () {
+      $('#get_token_timer').html('');
+      tabUpdate();
+   });
+
+   function tabUpdate() {
+      var link = $('#general-tab-link-[#ID#]')[0];
+      var linkEvent = document.createEvent('MouseEvents');
+      linkEvent.initEvent('click', true, true);
+      link.dispatchEvent(linkEvent);
+   }
+
+   function tryParseJSON (jsonString) {
+      try {
+         var o = JSON.parse(jsonString);
+         if (o && typeof o === "object") return o;
+      }
+      catch (e) { }
+      return false;
+   };
+
+</script>
+[#endif#]
