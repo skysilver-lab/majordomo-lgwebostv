@@ -3,7 +3,7 @@
 * Главный класс модуля LG webOS TV
 * @author <skysilver.da@gmail.com>
 * @copyright 2018 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
-* @version 0.1a
+* @version 0.2a
 */
 
 include_once(DIR_MODULES . 'lgwebostv/lib/socket_jobs.class.php');
@@ -724,8 +724,12 @@ class lgwebostv extends module
             $this->WriteLog('Handshake PROMT');
          }
 
-         if (isset($data['payload']['channelListCount']) && isset($data['payload']['channelList'])) {
-            $channelListCount = $data['payload']['channelListCount'];
+         if (strpos($data['id'], 'list_chs_') !== false && isset($data['payload']['channelList'])) {
+            if (isset($data['payload']['channelListCount'])) {
+               $channelListCount = $data['payload']['channelListCount'];
+            } else {
+               $channelListCount = count($data['payload']['channelList']);
+            }
             if ($channelListCount > 0) {
                $this->ProcessCommand($device_id, 'channels_count', $channelListCount);
                $chs_list = $data['payload']['channelList'];
