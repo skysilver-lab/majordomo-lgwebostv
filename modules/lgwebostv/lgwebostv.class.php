@@ -3,7 +3,7 @@
 * Главный класс модуля LG webOS TV
 * @author <skysilver.da@gmail.com>
 * @copyright 2018 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
-* @version 0.2a
+* @version 0.3a
 */
 
 include_once(DIR_MODULES . 'lgwebostv/lib/socket_jobs.class.php');
@@ -151,8 +151,6 @@ class lgwebostv extends module
    */
    function admin(&$out)
    {
-      //$this->WriteLog("admin(): " . $_SERVER['REMOTE_ADDR'] . ' ==> ' . $_SERVER['REQUEST_URI']);
-
       $this->getConfig();
 
       $out['API_TCP_PING_PERIOD'] = $this->config['API_TCP_PING_PERIOD'];
@@ -410,9 +408,9 @@ class lgwebostv extends module
          }
 
          if ($this->tab == 'data') {
-            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('online','command','command_raw','notification','state','power','volume','muted','input','source','app','error') ORDER BY ID");
+            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('online','command','command_raw','notification','state','state_title','state_icon','power','volume','muted','input','source','app','error') ORDER BY ID");
          } else if ($this->tab == 'channels') {
-            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('channel_number','channel_name','channel_id','channels_count','channel_type') ORDER BY ID");
+            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('channel_number','channel_name','channel_id','channels_count','channel_type','program_title','program_description') ORDER BY ID");
          }
 
          $total = count($properties);
@@ -580,23 +578,47 @@ class lgwebostv extends module
             $this->SendCommand($device_id, '', 'request', 'ssap://tv/channelUp');
          } else if ($value == 'channelDown') {
             $this->SendCommand($device_id, '', 'request', 'ssap://tv/channelDown');
+         } else if ($value == 'play') {
+            $this->SendCommand($device_id, '', 'request', 'ssap://media.controls/play');
+         } else if ($value == 'pause') {
+            $this->SendCommand($device_id, '', 'request', 'ssap://media.controls/pause');
+         } else if ($value == 'stop') {
+            $this->SendCommand($device_id, '', 'request', 'ssap://media.controls/stop');
+         } else if ($value == 'rewind') {
+            $this->SendCommand($device_id, '', 'request', 'ssap://media.controls/rewind');
+         } else if ($value == 'forward') {
+            $this->SendCommand($device_id, '', 'request', 'ssap://media.controls/fastForward');
          } else if ($value == 'powerOff') {
             $title = 'power';
             $value = 0;
+         } else if ($value == 'powerOn') {
+            $title = 'power';
+            $value = 1;
          }
-      } 
+      }
 
       if ($title == 'command_raw') {
-         // Метрика command_raw - отправка "сырых" api-команд на ТВ (без payload).
-         $this->SendCommand($device_id, '', 'request', $value);
-         // TODO: для payload можно применять какой-либо разделитель (точка, запятая, собака и др.)
+         // Метрика command_raw - отправка "сырых" api-команд на ТВ.
+         // Проверим, есть ли у команды параметр.
+         $tmp = explode('|', $value);
+         if ($tmp[1]) {
+            // Если есть, то отправляем команду с payload.
+            $command = trim($tmp[0]);
+            $payload = trim($tmp[1]);
+            $this->SendCommand($device_id, '', 'request', $command, $payload);
+         } else {
+            // Если нет, то только саму команду.
+            $this->SendCommand($device_id, '', 'request', $value);
+         }
       } else if ($title == 'power') {
-         // Метрика power - выключение ТВ.
+         // Метрика power - включение/выключение ТВ.
          $value = (int)$value;
          if ($value == 0) {
+            // Команда на выключение.
             $this->SendCommand($device_id, '', 'request', 'ssap://system/turnOff');
          } else if ($value == 1) {
-            // TODO: включение с помощью WOL.
+            // Включение с помощью WOL.
+            $this->SendWOL($device_id);
          }
       } else if ($title == 'volume') {
          // Метрика volume - изменение громкости.
@@ -627,7 +649,6 @@ class lgwebostv extends module
       } else if ($title == 'notification') {
          // Метрика notification - отображение текстового уведомления на ТВ.
          $this->SendCommand($device_id, '', 'request', 'ssap://system.notifications/createToast', '{"message":"' . $value . '"}');
-         // TODO: указание ссылки на иконку через разделитель '|'.
       } else if ($title == 'channel_name' || $title == 'channel_number') {
          // Метрика channel_name - переключение канала ТВ по названию.
          // Метрика channel_number - переключение канала ТВ по номеру.
@@ -761,8 +782,10 @@ class lgwebostv extends module
                $app = array();
                $app['app_id'] = $launchPoints[$i]['id'];
                $app['app_title'] = $launchPoints[$i]['title'];
-               $app['app_icon'] = str_replace(parse_url($launchPoints[$i]['icon'])['host'], $device['IP'], $launchPoints[$i]['icon']);
-               $app['app_miniicon'] = str_replace(parse_url($launchPoints[$i]['miniicon'])['host'], $device['IP'], $launchPoints[$i]['miniicon']);
+               //$app['app_icon'] = str_replace(parse_url($launchPoints[$i]['icon'])['host'], $device['IP'], $launchPoints[$i]['icon']);
+               //$app['app_miniicon'] = str_replace(parse_url($launchPoints[$i]['miniicon'])['host'], $device['IP'], $launchPoints[$i]['miniicon']);
+               $app['app_icon'] = $launchPoints[$i]['icon'];
+               $app['app_miniicon'] = $launchPoints[$i]['miniicon'];
                if (in_array($app['app_id'], $inputs)) {
                   $app['app_category'] = 'inputs';
                } else {
@@ -794,52 +817,41 @@ class lgwebostv extends module
             $this->ProcessCommand($device_id, 'channel_name', $channelName);
             $this->ProcessCommand($device_id, 'channel_id', $channelId);
             $this->ProcessCommand($device_id, 'channel_type', $channelTypeName);
+            // Запросим сведения о текущей программе на канале.
+            $this->SendCommand($device_id, 'program_info_', 'request', 'ssap://tv/getChannelCurrentProgramInfo');
+            // Также нужно запрашивать при переключении на livetv, т.к. канал не меняется, но инфа нужна.
+         } else if (strpos($data['id'], 'program_info_') !== false) {
+            // Подписка на сведения о программе.
+            $this->ProcessCommand($device_id, 'program_title', $data['payload']['programName']);
+            $this->ProcessCommand($device_id, 'program_description', $data['payload']['description']);
          } else if (strpos($data['id'], 'input_') !== false) {
             // Подписка на статусы входов/источников.
-            /*
-            if (!empty($data['payload']['devices'])) {
-               foreach ($data['payload']['devices'] as $input) {
-                  if ($input['connected']) {
-                     if (strrpos($input['appId'], 'externalinput') !== false) {
-                        $input = str_replace('com.webos.app.externalinput.', '', $input['appId']);
-                     } else {
-                        $input = str_replace('com.webos.app.', '', $input['appId']);
-                     }
-                     $this->ProcessCommand($device_id, 'input', $input);
-                  }
-               }
-            }
-            */
          } else if (strpos($data['id'], 'foreground_app_') !== false) {
             // Подписка на текущее запущенное приложение (в т. ч. источник).
             $appId = $data['payload']['appId'];
-            if (strrpos($appId, 'com.webos.app') !== false) {
-               if (strrpos($appId, 'externalinput') !== false) {
-                  $app = str_replace('com.webos.app.externalinput.', '', $appId);
-               } else {
-                  $app = str_replace('com.webos.app.', '', $appId);
-               }
-            } else {
-               $tmp = explode('.', $appId);
-               if ($tmp[1]) {
-                  $app = trim($tmp[0]);
-               } else {
-                  $app = $appId;
-               }
-            }
-            $inputs = array('livetv', 'hdmi1', 'hdmi2', 'hdmi3', 'hdmi4', 'miracast', 'av1', 'av2', 'component', 'scart');
-
-            if (in_array($app, $inputs)) {
-               //$this->ProcessCommand($device_id, 'input', $app);
-            } else {
-               //$this->ProcessCommand($device_id, 'app', $app);
-            }
             $this->ProcessCommand($device_id, 'state', $appId);
+
+            // Также обновим метрику с названием приложения (источника).
+            $title = $this->GetAppTitleByID($device_id, $appId);
+            $this->ProcessCommand($device_id, 'state_title', $title);
+
+            // Запросим актуальный список launchPoints, чтобы потом достать из него актуальную ссылку на иконку приложения (источника).
+            $this->SendCommand($device_id, 'launch_points_', 'request', 'ssap://com.webos.applicationManager/listLaunchPoints');
+
             // На каналы нужно подписываться, когда выбран вход livetv, иначе будет ошибка и подписка не оформится.
-            if ($app == 'livetv') {
+            if ($appId == 'com.webos.app.livetv') {
                // Если еще не подписаны на события смены каналов, то подписываемся.
                if (!$this->GetSubscribeStatus($device_id, 'channel_')) {
                   $this->SubscribeTo($device_id, 'channel_', 'ssap://tv/getCurrentChannel');
+               }
+            }
+         } else if (strpos($data['id'], 'launch_points_') !== false) {
+            if (!empty($data['payload']['launchPoints']) && is_array($data['payload']['launchPoints'])) {
+               $state = SQLSelectOne("SELECT VALUE FROM lgwebostv_commands WHERE DEVICE_ID='{$device_id}' AND TITLE='state'")['VALUE'];
+               foreach ($data['payload']['launchPoints'] as $app) {
+                  if ($app['id'] == $state) {
+                     $this->ProcessCommand($device_id, 'state_icon', $app['icon']);
+                  }
                }
             }
          } else if (strpos($data['id'], 'sw_info_') !== false) {
@@ -1063,7 +1075,6 @@ class lgwebostv extends module
    {
       $this->SendCommand($device_id, 'volume_', 'subscribe', 'ssap://audio/getVolume');
       $this->SendCommand($device_id, "foreground_app_", "subscribe", "ssap://com.webos.applicationManager/getForegroundAppInfo");
-      //$this->SendCommand($device_id, "input_", "subscribe", "ssap://tv/getExternalInputList");
       $this->SendCommand($device_id, 'sw_info_', 'request', 'ssap://com.webos.service.update/getCurrentSWInformation');
       $this->SendCommand($device_id, 'sys_info_', 'request', 'ssap://system/getSystemInfo');
       
@@ -1127,6 +1138,80 @@ class lgwebostv extends module
             }
          }
       }  else {
+         return false;
+      }
+   }
+
+   function SendWOL($device_id)
+   {
+      $broadcast = '255.255.255.255';
+      $mac = SQLSelectOne("SELECT MAC FROM lgwebostv_devices WHERE ID='{$device_id}'")['MAC'];
+
+      if ($mac != '') {
+         $this->WriteLog("Sending WOL packet for TV ID{$device_id}, MAC {$mac}");
+
+         $mac_array = explode(':', $mac);
+         $hwaddr = '';
+         $packet = '';
+
+         foreach ($mac_array as $octet) {
+            $hwaddr .= chr(hexdec($octet));
+         }
+
+         for ($i = 1; $i <= 6; $i++) {
+            $packet .= chr(255);
+         }
+
+         for ($i = 1; $i <= 16; $i++) {
+            $packet .= $hwaddr;
+         }
+
+         $sock = @socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+
+         if ($sock == false) {
+            $errno = socket_last_error($sock);
+            $errstr = socket_strerror($errno);
+            $this->WriteLog("Failed creating socket: $errstr ($errno)");
+            return false;
+         } else {
+            $options = @socket_set_option($sock, SOL_SOCKET, SO_BROADCAST, true);
+            if($options < 0) {
+               $errno = socket_last_error($sock);
+               $errstr = socket_strerror($errno);
+               $this->WriteLog("Failed set options to socket: $errstr ($errno)");
+               socket_close($sock);
+               return false;
+            } else {
+               socket_sendto($sock, $packet, strlen($packet), 0, $broadcast, 7);
+               socket_sendto($sock, $packet, strlen($packet), 0, $broadcast, 9);
+               socket_close($sock);
+               return true;
+            }
+          }
+      } else {
+         $this->WriteLog("Failed send WOL packet for TV ID{$device_id}. MAC not found.");
+         return false;
+      }
+   }
+
+   function GetAppTitleByID($device_id, $app_id)
+   {
+      $apps = SQLSelectOne("SELECT APPS FROM lgwebostv_devices WHERE ID='{$device_id}'")['APPS'];
+
+      if (!empty($apps)) {
+         $apps = json_decode($apps, true);
+         if (is_array($apps)) {
+            $index = array();
+            $key = 'app_id';
+            foreach($apps as $k => $v) {
+               $index[$v[$key]] = $k;
+            }
+            $app_title = $apps[$index[$app_id]]['app_title'];
+            unset($index);
+            unset($apps);
+            return $app_title;
+         }
+      } else {
          return false;
       }
    }
