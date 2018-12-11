@@ -3,7 +3,7 @@
 * Главный класс модуля LG webOS TV
 * @author <skysilver.da@gmail.com>
 * @copyright 2018 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
-* @version 0.3a
+* @version 0.4a
 */
 
 include_once(DIR_MODULES . 'lgwebostv/lib/socket_jobs.class.php');
@@ -782,10 +782,8 @@ class lgwebostv extends module
                $app = array();
                $app['app_id'] = $launchPoints[$i]['id'];
                $app['app_title'] = $launchPoints[$i]['title'];
-               //$app['app_icon'] = str_replace(parse_url($launchPoints[$i]['icon'])['host'], $device['IP'], $launchPoints[$i]['icon']);
-               //$app['app_miniicon'] = str_replace(parse_url($launchPoints[$i]['miniicon'])['host'], $device['IP'], $launchPoints[$i]['miniicon']);
-               $app['app_icon'] = $launchPoints[$i]['icon'];
-               $app['app_miniicon'] = $launchPoints[$i]['miniicon'];
+               $app['app_icon'] = str_replace(parse_url($launchPoints[$i]['icon'])['host'], $device['IP'], $launchPoints[$i]['icon']);
+               $app['app_miniicon'] = str_replace(parse_url($launchPoints[$i]['miniicon'])['host'], $device['IP'], $launchPoints[$i]['miniicon']);
                if (in_array($app['app_id'], $inputs)) {
                   $app['app_category'] = 'inputs';
                } else {
@@ -822,8 +820,13 @@ class lgwebostv extends module
             // Также нужно запрашивать при переключении на livetv, т.к. канал не меняется, но инфа нужна.
          } else if (strpos($data['id'], 'program_info_') !== false) {
             // Подписка на сведения о программе.
-            $this->ProcessCommand($device_id, 'program_title', $data['payload']['programName']);
-            $this->ProcessCommand($device_id, 'program_description', $data['payload']['description']);
+            if (isset($data['payload']['programName']) && $data['payload']['programName'] != '') {
+               $this->ProcessCommand($device_id, 'program_title', $data['payload']['programName']);
+               $this->ProcessCommand($device_id, 'program_description', $data['payload']['description']);
+            } else {
+               $this->ProcessCommand($device_id, 'program_title', 'unknown');
+               $this->ProcessCommand($device_id, 'program_description', 'unknown');
+            }
          } else if (strpos($data['id'], 'input_') !== false) {
             // Подписка на статусы входов/источников.
          } else if (strpos($data['id'], 'foreground_app_') !== false) {
@@ -848,10 +851,17 @@ class lgwebostv extends module
          } else if (strpos($data['id'], 'launch_points_') !== false) {
             if (!empty($data['payload']['launchPoints']) && is_array($data['payload']['launchPoints'])) {
                $state = SQLSelectOne("SELECT VALUE FROM lgwebostv_commands WHERE DEVICE_ID='{$device_id}' AND TITLE='state'")['VALUE'];
+               $url = false;
                foreach ($data['payload']['launchPoints'] as $app) {
                   if ($app['id'] == $state) {
-                     $this->ProcessCommand($device_id, 'state_icon', $app['icon']);
+                     $ip = SQLSelectOne("SELECT IP FROM lgwebostv_devices WHERE ID='{$device_id}'")['IP'];
+                     $url = str_replace(parse_url($app['icon'])['host'], $ip, $app['icon']);
+                     $this->ProcessCommand($device_id, 'state_icon', $url);
+                     break;
                   }
+               }
+               if (!$url) {
+                  $this->ProcessCommand($device_id, 'state_icon', 'unknown');
                }
             }
          } else if (strpos($data['id'], 'sw_info_') !== false) {
