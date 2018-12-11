@@ -854,8 +854,9 @@ class lgwebostv extends module
                $url = false;
                foreach ($data['payload']['launchPoints'] as $app) {
                   if ($app['id'] == $state) {
-                     $ip = SQLSelectOne("SELECT IP FROM lgwebostv_devices WHERE ID='{$device_id}'")['IP'];
-                     $url = str_replace(parse_url($app['icon'])['host'], $ip, $app['icon']);
+                     //$ip = SQLSelectOne("SELECT IP FROM lgwebostv_devices WHERE ID='{$device_id}'")['IP'];
+                     //$url = str_replace(parse_url($app['icon'])['host'], $ip, $app['icon']);
+                     $url = $app['icon'];
                      $this->ProcessCommand($device_id, 'state_icon', $url);
                      break;
                   }

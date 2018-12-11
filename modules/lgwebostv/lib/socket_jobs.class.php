@@ -272,7 +272,7 @@ class SocketJobs
 
       return
          "GET / HTTP/1.1\r\n" .
-         "Host: 192.168.1.12:3000\r\n" .
+         "Host: {$this->ip}:{$this->port}\r\n" .
          "pragma: no-cache\r\n" .
          "cache-control: no-cache\r\n" .
          "Upgrade: WebSocket\r\n" .
