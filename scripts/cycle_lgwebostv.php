@@ -3,7 +3,7 @@
 * Цикл модуля LG webOS TV
 * @author <skysilver.da@gmail.com>
 * @copyright 2018 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
-* @version 0.1a
+* @version 0.5a
 */
 
 chdir(dirname(__FILE__) . '/../');

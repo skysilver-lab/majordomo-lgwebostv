@@ -45,6 +45,7 @@
       </div>
       <div class="panel-body collapse" id="metrics_help">
          <div style="width:900px">
+            <div>
             <table class="table table-hover" align="left" style="margin-bottom: 5px;">
                <thead>
                   <th>Метрика</th><th>Описание</th><th style="width:180px">Значения</th><th nowrap>Чтение/запись</th>
@@ -70,7 +71,10 @@
                   <tr><td><b>program_description</b></td><td>Описание текущей передачи.</td><td>Описание передачи</td><td>Чтение</td></tr>
                   <tr><td><b>error</b></td><td>Сведения о последней возникшей ошибке.</td><td>Текст ошибки</td><td>Чтение</td></tr>
                </tbody>
-               </table>
+            </table>
+            </div>
+               <br><br>
+               <p>При запуске через метрику <strong>state</strong> приложений <strong>Youtube</strong> и <strong>Browser</strong> можно указывать ссылку на видео или сайт, которые будут открыты после запуска приложения. URL указывается как дополнительный параметр через разделитель <b>|</b> (вертикальный слеш). Для <strong>Youtube</strong> допускается вместо URL указывать ID видео.</p>
          </div>
       </div>
    </div>
@@ -83,7 +87,7 @@
             <div>
                Отправка <i>команд</i> на ТВ выполняется с помощью метрики <b>command</b> и привязанного к ней <i><b>свойства объекта</b></i> путем записи в это свойство <i>команды</i> через функцию <u>setGlobal()</u> или иным способом. Возможные <i>команды</i> приведены в таблице ниже. <br><br>
                Пример:<br>
-               <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; background: #ffffff; line-height: 125%">setGlobal(<span style="color: #BB4444">&#39;TV1.command&#39;</span>, <span style="color: #BB4444">&#39;volumeUp&#39;</span>);<span style="color: #008800; font-style: italic"><br>// Или<br></span>sg(<span style="color: #BB4444">&#39;TV1.command&#39;</span>, <span style="color: #BB4444">&#39;powerOff&#39;</span>);</pre></div>
+               <div style="background: #ffffff; overflow:auto;width:auto;padding:.2em .6em;"><pre style="margin: 0; background: #ffffff; line-height: 125%">setGlobal(<span style="color: #BB4444">&#39;TV1.command&#39;</span>, <span style="color: #BB4444">&#39;volumeUp&#39;</span>);<span style="color: #008800; font-style: italic"><br>// Или сокращенная форма setGlobal<br></span>sg(<span style="color: #BB4444">&#39;TV1.command&#39;</span>, <span style="color: #BB4444">&#39;powerOff&#39;</span>);<span style="color: #008800; font-style: italic"><br>// Запуск ролика на Youtube<br></span>sg(<span style="color: #BB4444">&#39;TV1.command&#39;</span>, <span style="color: #BB4444">&#39;youtube|youtu.be/3TeU9K8z9XA&#39;</span>);</pre></div>
             </div>
             <br>
             <table class="table table-hover" align="left" style="margin-bottom: 5px;">
@@ -94,15 +98,20 @@
                   <tr><td><b>ping</b></td><td>Проверка доступности ТВ с помощью tcp ping порта 3000.</td>
                   <tr><td><b>powerOn</b></td><td>Включение ТВ с помощью WOL (только для подключения ТВ по ethernet).<br>Поддерживается не всеми моделями ТВ.</td>
                   <tr><td><b>powerOff</b></td><td>Выключение ТВ.</td>
-                  <tr><td><b>volumeUp</b></td><td>Увеличить громкость.</td>
-                  <tr><td><b>volumeDown</b></td><td>Уменьшить громкость.</td>
                   <tr><td><b>channelUp</b></td><td>Следующий канал.</td>
                   <tr><td><b>channelDown</b></td><td>Предыдущий канал.</td>
+                  <tr><td><b>volume</b></td><td>Задать уровень громкости. Значение громкости указывается через разделитель <b>|</b> (вертикальный слеш). <br>Например, <i>volume|10</i></td>
+                  <tr><td><b>volumeUp</b></td><td>Увеличить громкость.</td>
+                  <tr><td><b>volumeDown</b></td><td>Уменьшить громкость.</td>
+                  <tr><td><b>muteOn</b></td><td>Включить режим "без звука".</td>
+                  <tr><td><b>muteOff</b></td><td>Выключить режим "без звука".</td>
                   <tr><td><b>play</b></td><td>Управление медиа. Воспроизвести.</td>
                   <tr><td><b>pause</b></td><td>Управление медиа. Пауза.</td>
                   <tr><td><b>stop</b></td><td>Управление медиа. Остановить.</td>
                   <tr><td><b>rewind</b></td><td>Управление медиа. Перемотать назад.</td>
                   <tr><td><b>forward</b></td><td>Управление медиа. Перемотать вперед.</td>
+                  <tr><td><b>browser</b></td><td>Запустить приложение <b>Браузер</b>. Опционально через разделитель <b>|</b> (вертикальный слеш) можно указать ссылку на сайт (URL). Например, <i>browser|ya.ru</i> или <i>browser|https://connect.smartliving.ru</i></td>
+                  <tr><td><b>youtube</b></td><td>Запустить приложение <b>Youtube</b>. Опционально через разделитель <b>|</b> (вертикальный слеш) можно указать ссылку на видео (URL) или идентификатор видео (VIDID). Например, <i>youtube|https://www.youtube.com/watch?v=UR2qXwR2vNE</i> или <i>youtube|3TeU9K8z9XA</i> Также поддерживаются сокращенные форматы ссылок.</td>
                </tbody>
             </table>
          </div>

@@ -3,7 +3,7 @@
 * Главный класс модуля LG webOS TV
 * @author <skysilver.da@gmail.com>
 * @copyright 2018 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
-* @version 0.4a
+* @version 0.5a
 */
 
 include_once(DIR_MODULES . 'lgwebostv/lib/socket_jobs.class.php');
@@ -344,8 +344,6 @@ class lgwebostv extends module
    {
       $rec = SQLSelectOne("SELECT ID, TITLE, IP, TOKEN, MODEL, MAC, WEBOS_VER, SUBSCRIBES FROM lgwebostv_devices WHERE ID='{$id}'");
 
-      //ID, TITLE, IP, TOKEN, MODEL, MAC, WEBOS_VER, SUBSCRIBES, CHANNELS, APPS 
-
       $online = SQLSelectOne("SELECT VALUE FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE='online'");
       $out['ONLINE'] = $online['VALUE'];
 
@@ -564,6 +562,13 @@ class lgwebostv extends module
    {
       // Метрика command - отправка предопределенных команд на ТВ или для цикла.
       if ($title == 'command') {
+         // Проверим, есть ли у команды параметр.
+         $tmp = explode('|', $value);
+         if (isset($tmp[1]) && $tmp[1] != '') {
+            // Если есть, то отправляем команду с payload.
+            $value = trim($tmp[0]);
+            $payload = trim($tmp[1]);
+         }
          if ($value == 'ping') {
             $this->SendToCycle($device_id, 'ping');
          } else if ($value == 'connect') {
@@ -594,10 +599,35 @@ class lgwebostv extends module
          } else if ($value == 'powerOn') {
             $title = 'power';
             $value = 1;
+         } else if ($value == 'muteOff') {
+            $title = 'muted';
+            $value = 0;
+         } else if ($value == 'muteOn') {
+            $title = 'muted';
+            $value = 1;
+         } else if ($value == 'volume') {
+            if (isset($payload) && $payload != '') {
+               $title = 'volume';
+               $value = $payload;
+            }
+         } else if ($value == 'browser') {
+            if (isset($payload) && $payload != '') {
+               $title = 'state';
+               $value = 'com.webos.app.browser|' . $payload;
+            } else {
+               $title = 'state';
+               $value = 'com.webos.app.browser';
+            }
+         } else if ($value == 'youtube') {
+            if (isset($payload) && $payload != '') {
+               $title = 'state';
+               $value = 'youtube.leanback.v4|' . $payload;
+            } else {
+               $title = 'state';
+               $value = 'youtube.leanback.v4';
+            }
          }
-      }
-
-      if ($title == 'command_raw') {
+      } else if ($title == 'command_raw') {
          // Метрика command_raw - отправка "сырых" api-команд на ТВ.
          // Проверим, есть ли у команды параметр.
          $tmp = explode('|', $value);
@@ -610,7 +640,10 @@ class lgwebostv extends module
             // Если нет, то только саму команду.
             $this->SendCommand($device_id, '', 'request', $value);
          }
-      } else if ($title == 'power') {
+         exit;
+      }
+
+      if ($title == 'power') {
          // Метрика power - включение/выключение ТВ.
          $value = (int)$value;
          if ($value == 0) {
@@ -684,7 +717,26 @@ class lgwebostv extends module
          $this->SendCommand($device_id, '', 'request', 'ssap://tv/openChannel', '{"channelId":"' . $value . '"}');
       } else if ($title == 'app' || $title == 'state' || $title == 'source') {
          // Метрика app - запуск приложения (в т.ч. выбор источника)
-         $this->SendCommand($device_id, '', 'request', 'ssap://system.launcher/launch', '{"id":"' . $value . '"}');
+         // Проверим, есть ли у команды параметр.
+         $tmp = explode('|', $value);
+         if (isset($tmp[1]) && $tmp[1] != '') {
+            // Если есть, то вытащим команду и ее payload.
+            $value = trim($tmp[0]);
+            $payload = trim($tmp[1]);
+            if (isset($payload) && $payload != '') {
+               if ($value == 'com.webos.app.browser') {
+                  $this->SendCommand($device_id, '', 'request', 'ssap://system.launcher/launch', '{"id":"' . $value . '","target":"' . $payload . '"}');
+               } else if ($value == 'youtube.leanback.v4') {
+                  preg_match("/^(?:http(?:s)?:\/\/)?(?:www\.)?(?:m\.)?(?:youtu\.be\/|youtube\.com\/(?:(?:watch)?\?(?:.*&)?v(?:i)?=|(?:embed|v|vi|user)\/))([^\?&\"'>]+)/", $payload, $matches);
+                  if (!empty($matches)) {
+                    $payload = $matches[1];
+                  }
+                  $this->SendCommand($device_id, '', 'request', 'ssap://system.launcher/launch', '{"id":"' . $value . '","contentId":"' . $payload . '"}');
+               }
+            }
+         } else {
+            $this->SendCommand($device_id, '', 'request', 'ssap://system.launcher/launch', '{"id":"' . $value . '"}');
+         }
       }
    }
 
@@ -782,8 +834,8 @@ class lgwebostv extends module
                $app = array();
                $app['app_id'] = $launchPoints[$i]['id'];
                $app['app_title'] = $launchPoints[$i]['title'];
-               $app['app_icon'] = str_replace(parse_url($launchPoints[$i]['icon'])['host'], $device['IP'], $launchPoints[$i]['icon']);
-               $app['app_miniicon'] = str_replace(parse_url($launchPoints[$i]['miniicon'])['host'], $device['IP'], $launchPoints[$i]['miniicon']);
+               $app['app_icon'] = $launchPoints[$i]['icon'];
+               $app['app_miniicon'] = $launchPoints[$i]['miniicon'];
                if (in_array($app['app_id'], $inputs)) {
                   $app['app_category'] = 'inputs';
                } else {
@@ -829,6 +881,20 @@ class lgwebostv extends module
             }
          } else if (strpos($data['id'], 'input_') !== false) {
             // Подписка на статусы входов/источников.
+            if (!empty($data['payload']['devices']) && is_array($data['payload']['devices'])) {
+               $state = SQLSelectOne("SELECT VALUE FROM lgwebostv_commands WHERE DEVICE_ID='{$device_id}' AND TITLE='state'")['VALUE'];
+               $url = false;
+               foreach ($data['payload']['devices'] as $input) {
+                  if ($input['appId'] == $state) {
+                     $url = $input['icon'];
+                     $this->ProcessCommand($device_id, 'state_icon', $url);
+                     break;
+                  }
+               }
+               if (!$url) {
+                  $this->ProcessCommand($device_id, 'state_icon', 'unknown');
+               }
+            }
          } else if (strpos($data['id'], 'foreground_app_') !== false) {
             // Подписка на текущее запущенное приложение (в т. ч. источник).
             $appId = $data['payload']['appId'];
@@ -838,7 +904,9 @@ class lgwebostv extends module
             $title = $this->GetAppTitleByID($device_id, $appId);
             $this->ProcessCommand($device_id, 'state_title', $title);
 
-            // Запросим актуальный список launchPoints, чтобы потом достать из него актуальную ссылку на иконку приложения (источника).
+            // Запросим актуальный список launchPoints,
+            // чтобы потом достать из него актуальную ссылку на иконку приложения (источника).
+            // TODO: возможно, достаточно брать эту инфу только при коннекте, а не каждый раз.
             $this->SendCommand($device_id, 'launch_points_', 'request', 'ssap://com.webos.applicationManager/listLaunchPoints');
 
             // На каналы нужно подписываться, когда выбран вход livetv, иначе будет ошибка и подписка не оформится.
@@ -854,8 +922,6 @@ class lgwebostv extends module
                $url = false;
                foreach ($data['payload']['launchPoints'] as $app) {
                   if ($app['id'] == $state) {
-                     //$ip = SQLSelectOne("SELECT IP FROM lgwebostv_devices WHERE ID='{$device_id}'")['IP'];
-                     //$url = str_replace(parse_url($app['icon'])['host'], $ip, $app['icon']);
                      $url = $app['icon'];
                      $this->ProcessCommand($device_id, 'state_icon', $url);
                      break;
@@ -1022,7 +1088,7 @@ class lgwebostv extends module
       }
 
       if ($payload) {
-         $msg['payload'] = $payload;
+         $msg['payload'] = json_decode($payload, true);
       }
 
       $cmd = json_encode($msg, JSON_UNESCAPED_SLASHES);
@@ -1058,9 +1124,9 @@ class lgwebostv extends module
 
       if ($token !== '') {
          $payload['client-key'] = $token;
-         return $payload;
+         return json_encode($payload);
       } else {
-         return $payload;
+         return json_encode($payload);
       }
    }
 
