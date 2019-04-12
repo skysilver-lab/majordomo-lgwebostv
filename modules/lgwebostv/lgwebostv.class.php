@@ -2,20 +2,15 @@
 /**
 * Главный класс модуля LG webOS TV
 * @author <skysilver.da@gmail.com>
-* @copyright 2018 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
-* @version 0.5a
+* @copyright 2018-2019 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
+* @version 0.6a
 */
 
 include_once(DIR_MODULES . 'lgwebostv/lib/socket_jobs.class.php');
 
 const WEBOS_PORT = 3000;
-const CONTROL_SOCKET_PORT = 3005;
 
 define ('AUTH_PAYLOAD', '{"forcePairing":false,"pairingType":"PROMPT","manifest":{"manifestVersion":1,"appVersion":"1.1","signed":{"created":"20140509","appId":"com.lge.test","vendorId":"com.lge","localizedAppNames":{"":"LG Remote App","ko-KR":"리모컨 앱","zxx-XX":"ЛГ Rэмotэ AПП"},"localizedVendorNames":{"":"LG Electronics"},"permissions":["TEST_SECURE","CONTROL_INPUT_TEXT","CONTROL_MOUSE_AND_KEYBOARD","READ_INSTALLED_APPS","READ_LGE_SDX","READ_NOTIFICATIONS","SEARCH","WRITE_SETTINGS","WRITE_NOTIFICATION_ALERT","CONTROL_POWER","READ_CURRENT_CHANNEL","READ_RUNNING_APPS","READ_UPDATE_INFO","UPDATE_FROM_REMOTE_APP","READ_LGE_TV_INPUT_EVENTS","READ_TV_CURRENT_TIME"],"serial":"2f930e2d2cfe083771f68e4fe7bb07"},"permissions":["LAUNCH","LAUNCH_WEBAPP","APP_TO_APP","CLOSE","TEST_OPEN","TEST_PROTECTED","CONTROL_AUDIO","CONTROL_DISPLAY","CONTROL_INPUT_JOYSTICK","CONTROL_INPUT_MEDIA_RECORDING","CONTROL_INPUT_MEDIA_PLAYBACK","CONTROL_INPUT_TV","CONTROL_POWER","READ_APP_STATUS","READ_CURRENT_CHANNEL","READ_INPUT_DEVICE_LIST","READ_NETWORK_STATE","READ_RUNNING_APPS","READ_TV_CHANNEL_LIST","WRITE_NOTIFICATION_TOAST","READ_POWER_STATE","READ_COUNTRY_INFO"],"signatures":[{"signatureVersion":1,"signature":"eyJhbGdvcml0aG0iOiJSU0EtU0hBMjU2Iiwia2V5SWQiOiJ0ZXN0LXNpZ25pbmctY2VydCIsInNpZ25hdHVyZVZlcnNpb24iOjF9.hrVRgjCwXVvE2OOSpDZ58hR+59aFNwYDyjQgKk3auukd7pcegmE2CzPCa0bJ0ZsRAcKkCTJrWo5iDzNhMBWRyaMOv5zWSrthlf7G128qvIlpMT0YNY+n/FaOHE73uLrS/g7swl3/qH/BGFG2Hu4RlL48eb3lLKqTt2xKHdCs6Cd4RMfJPYnzgvI4BNrFUKsjkcu+WD4OO2A27Pq1n50cMchmcaXadJhGrOqH5YmHdOCj5NSHzJYrsW0HPlpuAx/ECMeIZYDh6RMqaFM2DXzdKX9NmmyqzJ3o/0lkk/N97gfVRLW5hA29yeAwaCViZNCP8iC9aO0q9fQojoa7NQnAtw=="}]}}');
-
-define('BACKGROUND_MESSAGE_PROCESS', 1);
-define('CALL_METHOD_SAFE', 1);
-define('EXTENDED_LOGGING', 0);
 
 class lgwebostv extends module
 {
@@ -33,8 +28,26 @@ class lgwebostv extends module
       $this->title = 'LG webOS TV';
       $this->module_category = '<#LANG_SECTION_DEVICES#>';
       $this->checkInstalled();
-      $this->getConfig();
-      $this->debug = ($this->config['API_LOG_DEBMES'] == 1) ? true : false;
+
+      if (gr('dbg') != '') {
+         // Если экземпляр класса модуля создается при выполнении GET-запроса из цикла,
+         // то не будем каждый дергать настройки модуля из базы, а получим их из GET-запроса.
+         $this->debmes_debug = (gr('dbg', 'int') == 1) ? true : false;
+         $this->call_method_safe = (gr('cm', 'int') == 1) ? true : false;
+         $this->control_socket_port = (gr('port', 'int') != '') ? gr('port', 'int') : 3005;
+      } else {
+         // Во всех остальных случаях читаем полный набор настроек модуля из базы.
+         $this->getConfig();
+         $this->cycle_debug = ($this->config['LOG_CYCLE'] == 1) ? true : false;
+         $this->debmes_debug = ($this->config['LOG_DEBMES'] == 1) ? true : false;
+         $this->call_method_safe = ($this->config['CALL_METHOD_SAFE'] == '0') ? false : true;
+         $this->control_socket_port = (int)($this->config['CONTROL_SOCKET_PORT'] != '') ? (int)$this->config['CONTROL_SOCKET_PORT'] : 3005;
+         $this->background_message_process = ($this->config['BACKGROUND_MESSAGE_PROCESS'] == '0') ? false : true;
+         $this->tcp_ping_period = (int)($this->config['TCP_PING_PERIOD'] != '') ? (int)$this->config['TCP_PING_PERIOD'] : 60;
+         $this->ws_ping_period = (int)($this->config['WS_PING_PERIOD'] != '') ? (int)$this->config['WS_PING_PERIOD'] : 20;
+         $this->extended_logging = ($this->config['EXTENDED_LOGGING'] == 1) ? true : false;
+         $this->cycle_health = ($this->config['CYCLE_HEALTH'] == 1) ? true : false;
+      }
    }
 
    /**
@@ -151,24 +164,32 @@ class lgwebostv extends module
    */
    function admin(&$out)
    {
-      $this->getConfig();
+      $out['TCP_PING_PERIOD'] = $this->tcp_ping_period;
+      $out['WS_PING_PERIOD'] = $this->ws_ping_period;
+      $out['LOG_DEBMES'] = $this->debmes_debug;
+      $out['LOG_CYCLE'] = $this->cycle_debug;
+      $out['CONTROL_SOCKET_PORT'] = $this->control_socket_port;
+      $out['BACKGROUND_MESSAGE_PROCESS'] = ($this->background_message_process) ? '1' : '0';
+      $out['CALL_METHOD_SAFE'] = ($this->call_method_safe) ? '1' : '0';
+      $out['EXTENDED_LOGGING'] = $this->extended_logging;
+      $out['CYCLE_HEALTH'] = $this->cycle_health;
 
-      $out['API_TCP_PING_PERIOD'] = $this->config['API_TCP_PING_PERIOD'];
-      $out['API_WS_PING_PERIOD'] = $this->config['API_WS_PING_PERIOD'];
-      $out['API_LOG_DEBMES'] = $this->config['API_LOG_DEBMES'];
-      $out['API_LOG_CYCLE'] = $this->config['API_LOG_CYCLE'];
-
-      if ((time() - (int)gg('cycle_' . $this->name . 'Run')) < 15) {
+      if ((time() - (int)gg('cycle_' . $this->name . 'Run')) < 45) {
          $out['CYCLERUN'] = 1;
       } else {
          $out['CYCLERUN'] = 0;
       }
 
       if ($this->view_mode == 'update_settings') {
-         $this->config['API_TCP_PING_PERIOD'] = gr('api_tcp_ping_period', 'int');
-         $this->config['API_WS_PING_PERIOD'] = gr('api_ws_ping_period', 'int');
-         $this->config['API_LOG_DEBMES'] = gr('api_log_debmes');
-         $this->config['API_LOG_CYCLE'] = gr('api_log_cycle');
+         $this->config['TCP_PING_PERIOD'] = gr('tcp_ping_period', 'int');
+         $this->config['WS_PING_PERIOD'] = gr('ws_ping_period', 'int');
+         $this->config['LOG_DEBMES'] = gr('log_debmes');
+         $this->config['LOG_CYCLE'] = gr('log_cycle');
+         $this->config['CONTROL_SOCKET_PORT'] = gr('control_socket_port', 'int');
+         $this->config['BACKGROUND_MESSAGE_PROCESS'] = gr('background_message_process');
+         $this->config['CALL_METHOD_SAFE'] = gr('call_method_safe');
+         $this->config['EXTENDED_LOGGING'] = gr('extended_logging');
+         $this->config['CYCLE_HEALTH'] = gr('cycle_health');
 
          $this->saveConfig();
 
@@ -408,7 +429,7 @@ class lgwebostv extends module
          if ($this->tab == 'data') {
             $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('online','command','command_raw','notification','state','state_title','state_icon','power','volume','muted','input','source','app','error') ORDER BY ID");
          } else if ($this->tab == 'channels') {
-            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('channel_number','channel_name','channel_id','channels_count','channel_type','program_title','program_description') ORDER BY ID");
+            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('channel_number','channel_name','channel_id','channels_count','channel_type','channel_icon','program_title','program_description') ORDER BY ID");
          }
 
          $total = count($properties);
@@ -705,7 +726,7 @@ class lgwebostv extends module
                   unset($index);
                   unset($channels); 
                } else {
-                  // не верный тип вещания
+                  // Неверный тип вещания.
                   $this->WriteLog("Wrong channel type for TV ID{$device_id}. Command not send.");
                }
             }
@@ -754,10 +775,12 @@ class lgwebostv extends module
       // при ошибках в коде привязанного метода. Вызов привязанного метода через callMethodSafe
       // улучшает ситуацию, но блокировка цикла при этом составляет не менее 1 сек на каждое 
       // входящее сообщение. Преимущество - нет нагрузки на веб-сервер.
-      if (defined('BACKGROUND_MESSAGE_PROCESS') && BACKGROUND_MESSAGE_PROCESS == 1 && strlen($message) <= 2048) {
+      if ($this->background_message_process && strlen($message) <= 2000) {
+         $this->WriteLog("Background message process.");
          $data = array('message' => $message, 'id' => $device_id);
          $this->RunInBackground('process_message', $data);
       } else {
+         $this->WriteLog("Direct message process.");
          $this->ProcessMessage($message, $device_id);
       }
       // Если сообщение длинное, то возникает ошибка Request-URI Too Large при передаче через RunInBackground.
@@ -813,6 +836,13 @@ class lgwebostv extends module
                   $chl['channelId'] = $chs_list[$i]['channelId'];
                   $chl['channelNumber'] = $chs_list[$i]['channelNumber'];
                   $chl['channelName'] = $chs_list[$i]['channelName'];
+                  if (isset($chs_list[$i]['imgUrl']) && $chs_list[$i]['imgUrl'] != '') {
+                     if (isset($data['payload']['channelLogoServerUrl']) && $data['payload']['channelLogoServerUrl'] != '') {
+                        $channelLogoServerUrl = $data['payload']['channelLogoServerUrl'];
+                        $imgUrl = $chs_list[$i]['imgUrl'];
+                        $chl['channelIcon'] = $channelLogoServerUrl . substr($imgUrl, strrpos($imgUrl, '/'));
+                     }
+                  }
                   $channels[$chs_list[$i]['channelType']][] = $chl;
                }
                $device = SQLSelectOne("SELECT * FROM lgwebostv_devices WHERE ID='{$device_id}'");
@@ -868,8 +898,12 @@ class lgwebostv extends module
             $this->ProcessCommand($device_id, 'channel_id', $channelId);
             $this->ProcessCommand($device_id, 'channel_type', $channelTypeName);
             // Запросим сведения о текущей программе на канале.
-            $this->SendCommand($device_id, 'program_info_', 'request', 'ssap://tv/getChannelCurrentProgramInfo');
             // Также нужно запрашивать при переключении на livetv, т.к. канал не меняется, но инфа нужна.
+            $this->SendCommand($device_id, 'program_info_', 'request', 'ssap://tv/getChannelCurrentProgramInfo');
+            // Если в базе есть сведения о логотипе канала, то обновим метрику.
+            if ($channelIcon = $this->GetChannelIcon($device_id, $channelId, $channelTypeName)) {
+               $this->ProcessCommand($device_id, 'channel_icon', $channelIcon);
+            }
          } else if (strpos($data['id'], 'program_info_') !== false) {
             // Подписка на сведения о программе.
             if (isset($data['payload']['programName']) && $data['payload']['programName'] != '') {
@@ -1006,9 +1040,11 @@ class lgwebostv extends module
          $params['NEW_VALUE'] = $value;
          $params['OLD_VALUE'] = $old_value;
 
-         if (defined('CALL_METHOD_SAFE') && CALL_METHOD_SAFE == 1) {
+         if ($this->call_method_safe) {
+            $this->WriteLog("callMethodSafe({$cmd_rec['LINKED_OBJECT']}.{$cmd_rec['LINKED_METHOD']})");
             callMethodSafe($cmd_rec['LINKED_OBJECT'] . '.' . $cmd_rec['LINKED_METHOD'], $params);
          } else {
+            $this->WriteLog("callMethod({$cmd_rec['LINKED_OBJECT']}.{$cmd_rec['LINKED_METHOD']})");
             callMethod($cmd_rec['LINKED_OBJECT'] . '.' . $cmd_rec['LINKED_METHOD'], $params);
          }
       }
@@ -1107,10 +1143,10 @@ class lgwebostv extends module
 
       $cmd = json_encode($msg, JSON_UNESCAPED_SLASHES);
 
-      $client = @stream_socket_client('tcp://127.0.0.1:' . CONTROL_SOCKET_PORT, $errno, $errstr, 30);
+      $client = @stream_socket_client('tcp://127.0.0.1:' . $this->control_socket_port, $errno, $errstr, 30);
 
       if (!$client) {
-         $this->WriteLog("Failed sending to cycle control socket: $errstr ($errno)");
+         $this->WriteLog("Failed sending to cycle control socket ({$this->control_socket_port}): $errstr ($errno)");
       } else {
          fwrite($client, $cmd);
          stream_socket_shutdown($client, STREAM_SHUT_RDWR);
@@ -1293,12 +1329,41 @@ class lgwebostv extends module
       }
    }
 
+   function GetChannelIcon($device_id, $channel_id, $channel_type)
+   {
+      $channels = SQLSelectOne("SELECT CHANNELS FROM lgwebostv_devices WHERE ID='{$device_id}'")['CHANNELS'];
+
+      if (!empty($channels)) {
+         $channels = json_decode($channels, true);
+         if (is_array($channels)) {
+            if ($channels[$channel_type]) {
+               $index = array();
+               $key = 'channelId';
+               foreach($channels[$channel_type] as $k => $v) {
+                  $index[$v[$key]] = $k;
+               }
+               $channelIcon = $channels[$channel_type][$index[$channel_id]]['channelIcon'];
+               unset($index);
+               unset($channels); 
+               if (isset($channelIcon) && $channelIcon != '') {
+                  return $channelIcon;
+               }
+            }
+         }
+      }
+
+      return false;
+   }
+
    function RunInBackground($command, $params = false)
    {
       $args['op'] = $command;
 
       if (is_array($params)) {
          $args += $params;
+         $args += array('dbg' => $this->debmes_debug);
+         $args += array('port' => $this->control_socket_port);
+         $args += array('cm' => $this->call_method_safe);
       }
 
       $url = BASE_URL . "/ajax/{$this->name}.html?" . http_build_query($args);
@@ -1354,7 +1419,7 @@ class lgwebostv extends module
 
    function WriteLog($msg)
    {
-      if ($this->debug) {
+      if ($this->debmes_debug) {
          DebMes($msg, $this->name);
       }
    }

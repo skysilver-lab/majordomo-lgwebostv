@@ -9,7 +9,9 @@
                   <i class="glyphicon glyphicon-info-sign"></i>
                </span>
             </label>
-            <div class="col-lg-4"><input class="form-control" type="text" name="api_tcp_ping_period" value="[#if API_TCP_PING_PERIOD!=""#][#API_TCP_PING_PERIOD#][#else#]60[#endif#]" class="input"></div>
+            <div class="col-lg-4">
+               <input class="form-control" type="text" name="tcp_ping_period" value="[#if TCP_PING_PERIOD!=""#][#TCP_PING_PERIOD#][#else#]60[#endif#]" class="input">
+            </div>
          </div>
          <div class="form-group">
             <label class="control-label">Период WEBSOCKET PING
@@ -17,10 +19,13 @@
                   <i class="glyphicon glyphicon-info-sign"></i>
                </span>
             </label>
-            <div class="col-lg-4"><input class="form-control" type="text" name="api_ws_ping_period" value="[#if API_WS_PING_PERIOD!=""#][#API_WS_PING_PERIOD#][#else#]20[#endif#]" class="input"></div>
+            <div class="col-lg-4">
+               <input class="form-control" type="text" name="ws_ping_period" value="[#if WS_PING_PERIOD!=""#][#WS_PING_PERIOD#][#else#]20[#endif#]" class="input">
+            </div>
          </div>
          <div class="form-group">
-            <div class="controls"><input type="checkbox" name="api_log_debmes" value="1"[#if API_LOG_DEBMES="1"#] checked[#endif#]> 
+            <div class="controls">
+               <input type="checkbox" name="log_debmes" value="1"[#if LOG_DEBMES="1"#] checked[#endif#]> 
                Отладка  DebMes
                <span class='support-hover' tabindex="1" data-title="Запись обмена сообщениями между сервером и ТВ в отдельный лог-файл YYYY-mm-dd_lgwebostv.log. Для вступления изменений в силу требуется перезапустить цикл.">
                   <i class="glyphicon glyphicon-info-sign"></i>
@@ -28,12 +33,84 @@
             </div>
          </div>
          <div class="form-group">
-            <div class="controls"><input type="checkbox" name="api_log_cycle" value="1"[#if API_LOG_CYCLE="1"#] checked[#endif#]> 
+            <div class="controls">
+               <input type="checkbox" name="log_cycle" value="1"[#if LOG_CYCLE="1"#] checked[#endif#]> 
                Отладка  Cycle
-               <span class='support-hover' tabindex="1" data-title="Запись отладочных сообщений цикла в лог-файл log_YYYY-mm-dd-cycle_lgwebostv.php.txt. Для вступления изменений в силу требуется перезапустить цикл.">
+               <span class='support-hover' tabindex="1" data-title="Запись отладочных сообщений цикла в лог-файл log_YYYY-mm-dd-cycle_lgwebostv.php.txt. Предварительно требуется глобально разрешить запись логов циклов на уровне ядра системы в файле конфигурации config.php. Для вступления изменений в силу требуется перезапустить цикл.">
                   <i class="glyphicon glyphicon-info-sign"></i>
                </span>
             </div>
+         </div>
+         <script type="text/javascript">
+            $("#advanced_show").click(function () {
+               var text = $('#advanced_show').text();
+               text = (text == "Показать") ? "Скрыть" : "Показать";
+               $('#advanced_show').text(text);
+            });
+         </script>
+         <div class="form-group">
+            <label class="control-label">Расширенные настройки</label>
+            <div class="controls">
+               <span class="btn btn-default btn-sm" id="advanced_show" data-toggle="collapse" data-target="#advanced_settings">Показать</span>
+            </div>
+         </div>
+         <div class='collapse' id='advanced_settings'>
+            <div class="form-group">
+               <label class="control-label">Служебный порт цикла
+                  <span class='support-hover' tabindex="1" data-title="Указывается номер TCP-порта служебного сокета цикла, через который осуществляется обмен данными между процессом цикла и модулем. По умолчанию используется порт 3005.">
+                     <i class="glyphicon glyphicon-info-sign"></i>
+                  </span>
+               </label>
+               <div class="col-lg-4">
+                  <input class="form-control" type="text" name="control_socket_port" value="[#if CONTROL_SOCKET_PORT!=""#][#CONTROL_SOCKET_PORT#][#else#]3005[#endif#]" class="input">
+               </div>
+            </div>
+            <div class="form-group">
+               <label class="control-label">Способ обработки сообщений
+                  <span class='support-hover' tabindex="1" data-title="Выбирается способ обработки полученных от устройства сообщений - в неблокирующем режиме через вызов фонового процесса по URL-ссылке модуля или в блокирующем режиме через прямой вызов функции модуля. Значение по умолчанию 'Неблокирующий'.">
+                     <i class="glyphicon glyphicon-info-sign"></i>
+                  </span>
+               </label>
+               <div class="col-lg-4">
+                  <select name="background_message_process" class="form-control">
+                     <option value="0" [#if BACKGROUND_MESSAGE_PROCESS="0"#] selected[#endif#]>Блокирующий (в одном потоке)</option>
+                     <option value="1" [#if BACKGROUND_MESSAGE_PROCESS="1" OR BACKGROUND_MESSAGE_PROCESS=""#] selected[#endif#]>Неблокирующий (в фоновом процессе)</option>
+                  </select>
+               </div>
+            </div>
+            <div class="form-group">
+               <label class="control-label">Способ вызова метода
+                  <span class='support-hover' tabindex="1" data-title="Выбирается способ вызова привязанного к метрике метода. Значение по умолчанию 'Асинхронный'.">
+                     <i class="glyphicon glyphicon-info-sign"></i>
+                  </span>
+               </label>
+               <div class="col-lg-4">
+                  <select name="call_method_safe" class="form-control">
+                     <option value="0" [#if CALL_METHOD_SAFE="0"#] selected[#endif#]>Стандартный (callMethod)</option>
+                     <option value="1" [#if CALL_METHOD_SAFE="1" OR CALL_METHOD_SAFE=""#] selected[#endif#]>Асинхронный (callMethodSafe)</option>
+                  </select>
+               </div>
+            </div>
+            <div class="form-group">
+               <div class="controls">
+                  <input type="checkbox" name="extended_logging" value="1"[#if EXTENDED_LOGGING="1"#] checked[#endif#]> 
+                  Расширенное логирование цикла
+                  <span class='support-hover' tabindex="1" data-title="При активации включается расширенное логирование работы цикла модуля. В частности в лог-файл пишутся этапы выполнения цикла и время выполнения некоторых функций.">
+                     <i class="glyphicon glyphicon-info-sign"></i>
+                  </span>
+               </div>
+            </div>
+            <!--#
+            <div class="form-group">
+               <div class="controls">
+                  <input type="checkbox" name="cycle_health" value="1"[#if CYCLE_HEALTH="1"#] checked[#endif#] disabled> 
+                  Статистика работы цикла
+                  <span class='support-hover' tabindex="1" data-title="При активации собирается дополнительная информация о работе цикла модуля - время работы, расход ОЗУ, статус управляющего сокета, число принятых и отправленных сообщений. Функционал находится в разработке.">
+                     <i class="glyphicon glyphicon-info-sign"></i>
+                  </span>
+               </div>
+            </div>
+            #-->
          </div>
          <div class="form-actions">
             <button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>

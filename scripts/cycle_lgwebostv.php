@@ -2,8 +2,8 @@
 /**
 * Цикл модуля LG webOS TV
 * @author <skysilver.da@gmail.com>
-* @copyright 2018 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
-* @version 0.5a
+* @copyright 2018-2019 Agaphonov Dmitri aka skysilver <skysilver.da@gmail.com> (c)
+* @version 0.6a
 */
 
 chdir(dirname(__FILE__) . '/../');
@@ -28,34 +28,39 @@ $lgwebostv_module = new lgwebostv();
 
 echo date('H:i:s') . ' Running ' . basename(__FILE__) . PHP_EOL;
 
-$latest_ping  = 0;
-$ping_period  = 60;     // Период tcp ping по умолчанию.
-$ws_check_period = 20;  // Период websocket ping по умолчанию.
-$latest_cycle_check = 0;
-$cycle_check_period = 5;
+$latest_ping         =  0;
+$latest_cycle_check  =  0;
+$cycle_check_period  =  15;
 
-$cycle_debug = false;    // По умолчанию логи цикла выключены.
-$debmes_debug = false;   // По умолчанию логи debmes выключены.
-
-if ($lgwebostv_module->config['API_TCP_PING_PERIOD'] != '') $ping_period = (int)$lgwebostv_module->config['API_TCP_PING_PERIOD'];
-if ($lgwebostv_module->config['API_WS_PING_PERIOD'] != '') $ws_check_period = (int)$lgwebostv_module->config['API_WS_PING_PERIOD'];
-if ($lgwebostv_module->config['API_LOG_CYCLE']) $cycle_debug = true;
-if ($lgwebostv_module->config['API_LOG_DEBMES']) $debmes_debug = true;
+$control_socket_port =  $lgwebostv_module->control_socket_port;
+$tcp_ping_period     =  $lgwebostv_module->tcp_ping_period;
+$ws_ping_period      =  $lgwebostv_module->ws_ping_period;
+$cycle_debug         =  $lgwebostv_module->cycle_debug;
+$debmes_debug        =  $lgwebostv_module->debmes_debug;
+$extended_logging    =  $lgwebostv_module->extended_logging;
+$cycle_health        =  $lgwebostv_module->cycle_health;
+$bg_message_process  =  $lgwebostv_module->background_message_process;
+$call_method_safe    =  $lgwebostv_module->call_method_safe;
 
 echo date('H:i:s') . ' Init LG webOS TV cycle' . PHP_EOL;
 echo date('H:i:s') . ' Cycle debug - ' . ($cycle_debug ? 'yes' : 'no') . PHP_EOL;
 echo date('H:i:s') . ' DebMes debug - ' . ($debmes_debug ? 'yes' : 'no') . PHP_EOL;
-echo date('H:i:s') . ' Extended debug - ' . (EXTENDED_LOGGING ? 'yes' : 'no') . PHP_EOL;
-echo date('H:i:s') . " Ping period - $ping_period seconds" . PHP_EOL;
-echo date('H:i:s') . " Websocket check period - $ws_check_period seconds" . PHP_EOL;
-echo date('H:i:s') . ' Incoming message processing mode - ' . (BACKGROUND_MESSAGE_PROCESS ? 'background' : 'direct') . PHP_EOL;
-echo date('H:i:s') . ' Call method mode - ' . (CALL_METHOD_SAFE ? 'safe' : 'default') . PHP_EOL;
+echo date('H:i:s') . ' Extended debug - ' . ($extended_logging ? 'yes' : 'no') . PHP_EOL;
+echo date('H:i:s') . ' Cycle health - ' . ($cycle_health ? 'yes' : 'no') . PHP_EOL;
+echo date('H:i:s') . " Ping period - $tcp_ping_period seconds" . PHP_EOL;
+echo date('H:i:s') . " Websocket check period - $ws_ping_period seconds" . PHP_EOL;
+echo date('H:i:s') . ' Incoming message processing mode - ' . ($bg_message_process ? 'background' : 'direct') . PHP_EOL;
+echo date('H:i:s') . ' Call method mode - ' . ($call_method_safe ? 'safe' : 'default') . PHP_EOL;
+echo date('H:i:s') . " Control socket port - $control_socket_port" . PHP_EOL;
 
 // Создаем управляющий сокет, который будет принимать команды от МДМ.
-$controlSocket = stream_socket_server('tcp://127.0.0.1:' . CONTROL_SOCKET_PORT, $errno, $errstr);
+$controlSocket = stream_socket_server('tcp://127.0.0.1:' . $control_socket_port, $errno, $errstr);
 if ($controlSocket === false) {
    echo date('H:i:s') . ' Control socket - FAILED' . PHP_EOL;
    echo date('H:i:s') . " Connect error: $errno $errstr" . PHP_EOL;
+   DebMes("Control socket - FAILED. Connect error: $errno $errstr.", $lgwebostv_module->name);
+   $db->Disconnect();
+   exit;
 } else {
    echo date('H:i:s') . ' Control socket - OK' . PHP_EOL;
 }
@@ -83,7 +88,7 @@ if ($tvs[0]['ID']) {
 
 while (1) {
 
-   if (defined('EXTENDED_LOGGING') && EXTENDED_LOGGING == 1) {
+   if ($extended_logging) {
       if ($cycle_debug) echo date('H:i:s') . ' Cycle start' . PHP_EOL;
    }
 
@@ -93,7 +98,7 @@ while (1) {
       setGlobal((str_replace('.php', '', basename(__FILE__))) . 'Run', time(), 1);
    }
 
-   if ((time() - $latest_ping) >= $ping_period) {
+   if ((time() - $latest_ping) >= $tcp_ping_period) {
       // Периодическая проверка доступности ТВ (tcp ping на порт 3000).
       if (!empty($tvList)) {
          if ($cycle_debug) echo date('H:i:s') . ' Periodic TV availability check in background process.' . PHP_EOL;
@@ -118,7 +123,7 @@ while (1) {
       foreach ($tvList as $tv) {
 
          if ($tv['SOCKET']->IsOffline()) {
-            if (defined('EXTENDED_LOGGING') && EXTENDED_LOGGING == 1) {
+            if ($extended_logging) {
                if ($cycle_debug) echo date('H:i:s') . ' TV ' . $tv['SOCKET']->GetIP() . ' socket status = ' . $tv['SOCKET']->GetStatus() . PHP_EOL;
             }
             continue;
@@ -127,10 +132,10 @@ while (1) {
          if ($tv['SOCKET']->IsOnline()) {
             $sendTimeout = time() - $tv['SOCKET']->lastSendMsgTime;
             $rcvTimeout  = time() - $tv['SOCKET']->lastRcvMsgTime;
-            if (($sendTimeout >= $ws_check_period) && ($rcvTimeout >= $ws_check_period)) {
+            if (($sendTimeout >= $ws_ping_period) && ($rcvTimeout >= $ws_ping_period)) {
                if ($cycle_debug) echo date('H:i:s') . ' Send websocket ping to ' . $tv['SOCKET']->GetIP() . PHP_EOL;
                $tv['SOCKET']->WriteData('ping', true, 'ping');
-            } else if (($sendTimeout >= 5 && $sendTimeout < $ws_check_period) && ($rcvTimeout > $ws_check_period)) {
+            } else if (($sendTimeout >= 5 && $sendTimeout < $ws_ping_period) && ($rcvTimeout > $ws_ping_period)) {
                if ($cycle_debug) echo date('H:i:s') . ' Close connection on timeout ' . $tv['SOCKET']->GetIP() . PHP_EOL;
                $tv['SOCKET']->Disconnect();
                $lgwebostv_module->IncomingMessageProcessing('{"type":"ws_close"}', $tv['ID']);
@@ -160,13 +165,13 @@ while (1) {
                $ar_write[] = $socket;
             }
          }
-         if (defined('EXTENDED_LOGGING') && EXTENDED_LOGGING == 1) {
+         if ($extended_logging) {
             if ($cycle_debug) echo date('H:i:s') . ' TV ' . $tv['SOCKET']->GetIP() . ' socket status = |SS:' . $tv['SOCKET']->GetStatus() . '|ST:' . $sendTimeout . '|RT:' . $rcvTimeout . '|' . PHP_EOL;
          }
       }
    }
 
-   if (defined('EXTENDED_LOGGING') && EXTENDED_LOGGING == 1) {
+   if ($extended_logging) {
       if ($cycle_debug) echo date('H:i:s') . ' Start stream_select()' . PHP_EOL;
    }
    // Магия сокетов! :) Ждем, когда ядро ОС нас уведомит о событии, или делаем дежурную итерацию раз в 5 сек.
@@ -174,7 +179,7 @@ while (1) {
       echo date('H:i:s') . ' Error stream_select()' . PHP_EOL;
    }
 
-   if (defined('EXTENDED_LOGGING') && EXTENDED_LOGGING == 1) {
+   if ($extended_logging) {
       if ($cycle_debug) echo date('H:i:s') . ' Stop stream_select()' . PHP_EOL;
    }
 
@@ -227,7 +232,7 @@ while (1) {
                   // Отправляем на обработку в модуль.
                   if (is_array($msgs)) {
                      foreach ($msgs as $msg) {
-                        if (defined('EXTENDED_LOGGING') && EXTENDED_LOGGING == 1) {
+                        if ($extended_logging) {
                            $time_start = microtime(true);
                            $lgwebostv_module->IncomingMessageProcessing($msg, $tv['ID']);
                            $time = microtime(true) - $time_start;
@@ -244,7 +249,7 @@ while (1) {
       }
    }
 
-   if (defined('EXTENDED_LOGGING') && EXTENDED_LOGGING == 1) {
+   if ($extended_logging) {
       if ($cycle_debug) echo date('H:i:s') . ' Cycle end' . PHP_EOL;
    }
 
