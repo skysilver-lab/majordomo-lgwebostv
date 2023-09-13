@@ -109,7 +109,7 @@ class SocketJobs
       if ($this->GetStatus() == 'DO_PING') {
          $this->WriteLog(date('H:i:s') . " Checking TV {$this->ip}.", false);
 
-         $connection = @fsockopen($this->ip, $this->port, $errno, $errstr, 5);
+         $connection = fsockopen($this->ip, $this->port, $errno, $errstr, 5);
 
          if (is_resource($connection) && !empty($connection)) {
             fclose($connection);
@@ -130,7 +130,15 @@ class SocketJobs
 
    public function Connect()
    {
-      $socket = stream_socket_client('tcp://' . $this->ip . ':' . $this->port, $errno, $errstr, 30, STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT);
+      $context = stream_context_create([
+       'ssl' => [
+          'verify_peer_name' => false,
+          'verify_peer' => false
+       ]
+      ]);
+	  $prefix = 'tcp://';
+	  if ($this->port == 3001) $prefix = 'ssl://';
+      $socket = stream_socket_client($prefix . $this->ip . ':' . $this->port, $errno, $errstr, 30, STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT, $context);
 
       if ($socket === false) {
          $this->WriteLog(date('Y-m-d H:i:s') . " Stream socket create error: $errno $errstr");
@@ -164,6 +172,8 @@ class SocketJobs
 
    public function ReadHandle($tv_id)
    {
+	   //ждем 0,05 секунды, иначе есть шанс закрыть порт до того, как начли идти данные
+	  usleep(50000);
       $msg = array();
       if (feof($this->socket) || !is_resource($this->socket)) {
          $this->WriteLog(date('H:i:s') . ' Error: unsuccessful reading from socket or socket resource does not exist.');
@@ -172,10 +182,18 @@ class SocketJobs
       } else {
          // Читаем из готового к чтению сокета без блокировки.
          $data = fread($this->socket, 8192);
-         if ('' === $data || false === $data) {
+         if ($data === '' || $data === false) {
             $this->WriteLog(date('H:i:s') . ' Error: data false or empty.');
-            $this->Disconnect();
             $msg[] = '{"type":"ws_close"}';
+			$this->Disconnect();
+			//Если соединение неудачно, менем порт на 3001
+			if($this->port == 3000){
+				$this->port = 3001;
+				$device = SQLSelectOne("SELECT * FROM lgwebostv_devices WHERE ID='{$tv_id}'");
+				$device['IP'].= ":3001";
+				SQLUpdate('lgwebostv_devices', $device); //и в базе тоже
+				$this->Ping();
+			}
          } else {
             $length = strlen($data);
             $this->WriteLog(date('H:i:s') . " Successful get data from TV {$this->ip} [{$length} bytes].");
@@ -229,7 +247,7 @@ class SocketJobs
    {
       if (!$this->IsOffline()) {
          // Получаем данные, которые нужно записать.
-         $dataToWrite = $this->readyDataWriteEvent();
+         $dataToWrite = $this->ReadyDataWriteEvent();
          $length = strlen($dataToWrite);
          $this->WriteLog(date('H:i:s') . " Send {$length} bytes data to TV {$this->ip}. ", false);
          $count = fwrite($this->socket, $dataToWrite, strlen($dataToWrite));

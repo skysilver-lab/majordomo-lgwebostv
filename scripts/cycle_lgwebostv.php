@@ -77,8 +77,8 @@ if ($tvs[0]['ID']) {
    echo date('H:i:s') . " $total TVs found" . PHP_EOL;
    for ($i = 0; $i < $total; $i++) {
       $tvObj['ID'] = $tvs[$i]['ID'];
-      $tvObj['IP'] = $tvs[$i]['IP'];
-      $tvObj['SOCKET'] = new SocketJobs($tvs[$i]['IP'], WEBOS_PORT, $cycle_debug);
+      $tvObj['IP'] = $lgwebostv_module->GetPort($tvs[$i]['IP'])['IP'];
+      $tvObj['SOCKET'] = new SocketJobs($tvObj['IP'], $lgwebostv_module->GetPort($tvs[$i]['IP'])['PORT'], $cycle_debug);
       $tvList[$tvs[$i]['ID']] = $tvObj;
       $lgwebostv_module->UnsubscribeFrom($tvs[$i]['ID'], 'channel_');
    }
@@ -226,7 +226,7 @@ while (1) {
          } else {
             // Выясняем, из какого сокета надо читать.
             foreach ($tvList as $tv) {
-               if ($read_ready_socket == $tv['SOCKET']->getSocket()) {
+				if ($read_ready_socket == $tv['SOCKET']->getSocket()) {
                   // Читаем.
                   $msgs = $tv['SOCKET']->ReadHandle($tv['ID']);
                   // Отправляем на обработку в модуль.
