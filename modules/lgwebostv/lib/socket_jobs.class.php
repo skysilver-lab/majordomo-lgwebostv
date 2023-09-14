@@ -188,11 +188,14 @@ class SocketJobs
 			$this->Disconnect();
 			//Если соединение неудачно, менем порт на 3001
 			if($this->port == 3000){
-				$this->port = 3001;
 				$device = SQLSelectOne("SELECT * FROM lgwebostv_devices WHERE ID='{$tv_id}'");
-				$device['IP'].= ":3001";
-				SQLUpdate('lgwebostv_devices', $device); //и в базе тоже
-				$this->Ping();
+				//Если порт н епрописан в адресе
+				if(!strpos($device['IP'], ':')){
+					$this->port = 3001;
+					$device['IP'].= ":3001";
+					SQLUpdate('lgwebostv_devices', $device); //и в базе тоже
+					$this->Ping();
+				}
 			}
          } else {
             $length = strlen($data);
