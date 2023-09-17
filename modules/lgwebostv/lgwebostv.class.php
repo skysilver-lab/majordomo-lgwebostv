@@ -883,8 +883,8 @@ class lgwebostv extends module
          
          if (strpos($data['id'], 'volume_') !== false) {
             // Подписка на громкость.
-            $volume = $data['payload']['volume'];
-            $mute = $data['payload']['muted'] ? 1 : 0;
+            $volume = $data['payload']['volumeStatus']['volume'];
+            $mute = $data['payload']['volumeStatus']['muteStatus'] ? 1 : 0;
             $this->ProcessCommand($device_id, 'volume', $volume);
             $this->ProcessCommand($device_id, 'muted', $mute);
          } else if (strpos($data['id'], 'channel_') !== false) {
