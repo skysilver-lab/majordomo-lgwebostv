@@ -883,8 +883,8 @@ class lgwebostv extends module
          
          if (strpos($data['id'], 'volume_') !== false) {
             // Подписка на громкость.
-            $volume = $data['payload']['volume'];
-            $mute = $data['payload']['muted'] ? 1 : 0;
+            $volume = $data['payload']['volumeStatus']['volume'];
+            $mute = $data['payload']['volumeStatus']['muteStatus'] ? 1 : 0;
             $this->ProcessCommand($device_id, 'volume', $volume);
             $this->ProcessCommand($device_id, 'muted', $mute);
          } else if (strpos($data['id'], 'channel_') !== false) {
@@ -1071,11 +1071,13 @@ class lgwebostv extends module
             $tvList[$dev_id]['SOCKET']->Disconnect();
             break;
          case ('addnew'):
-            $dev_ip = $control_cmd->data;
+		 $this->WriteLog($control_cmd);
+            $dev_ip = $this->GetPort($control_cmd->data)['IP'];
+			$dev_port = $this->GetPort($control_cmd->data)['PORT'];
             $tvObj = array();
             $tvObj['ID'] = $dev_id;
             $tvObj['IP'] = $dev_ip;
-            $tvObj['SOCKET'] = new SocketJobs($dev_ip, WEBOS_PORT, $cycle_debug);
+            $tvObj['SOCKET'] = new SocketJobs($dev_ip, $dev_port, $cycle_debug);
             $tvList[$dev_id] = $tvObj;
             break;
          case ('delete'):
@@ -1171,7 +1173,9 @@ class lgwebostv extends module
       $this->WriteLog("Checking TV {$device_ip} [ID{$device_id}] (tcp ping).");
 
       $isOnline = false;
-      $connection = @fsockopen($device_ip, WEBOS_PORT, $errno, $errstr, 5);
+	  $device_port = $this->GetPort($device_ip)['PORT'];
+	  $device_ip = $this->GetPort($device_ip)['IP'];
+      $connection = @fsockopen($device_ip, $device_port, $errno, $errstr, 5);
 
       if (is_resource($connection) && !empty($connection)) {
          fclose($connection);
@@ -1422,6 +1426,18 @@ class lgwebostv extends module
       if ($this->debmes_debug) {
          DebMes($msg, $this->name);
       }
+   }
+   
+   function GetPort($ip){
+	$port = strpos($ip, ':');
+	if($port){
+		$address['IP'] = substr($ip, 0, $port);
+		$address['PORT'] = substr($ip, $port+1);
+	} else {
+		$address['IP'] = $ip;
+		$address['PORT'] = "3000";
+	}
+	return $address;
    }
 
    /**
