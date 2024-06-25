@@ -1131,6 +1131,7 @@ class lgwebostv extends module
 
       $cmd = json_encode($msg, JSON_UNESCAPED_SLASHES);
 
+
       $this->WriteLog("Outgoing message to TV ID{$device_id}: {$cmd}");
 
       $this->SendToCycle($device_id, 'send', $cmd);
@@ -1313,6 +1314,7 @@ class lgwebostv extends module
 
    function GetAppTitleByID($device_id, $app_id)
    {
+	 if(isset($app_id) && $app_id != ''){
       $apps = SQLSelectOne("SELECT APPS FROM lgwebostv_devices WHERE ID='{$device_id}'")['APPS'];
 
       if (!empty($apps)) {
@@ -1331,6 +1333,7 @@ class lgwebostv extends module
       } else {
          return false;
       }
+	 }
    }
 
    function GetChannelIcon($device_id, $channel_id, $channel_type)
