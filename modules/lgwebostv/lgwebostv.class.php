@@ -647,7 +647,14 @@ class lgwebostv extends module
                $title = 'state';
                $value = 'youtube.leanback.v4';
             }
-         }
+         } else {
+			 $remote_commands = array("1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "LIST", "AD", "DASH", "MUTE", "VOLUMEUP", "VOLUMEDOWN", "CHANNELUP", "CHANNELDOWN", "HOME", "MENU", "UP", "DOWN", "LEFT", "RIGHT", "CLICK", "BACK", "EXIT", "PROGRAM", "ENTER", "INFO", "RED", "GREEN", "YELLOW", "BLUE", "LIVE_ZOOM", "CC", "PLAY", "PAUSE", "REWIND", "FASTFORWARD", "POWER", "FAVORITES", "RECORD", "FLASHBACK", "QMENU", "GOTOPREV", "GOTONEXT", "3D_MODE", "SAP", "ASPECT_RATIO", "EJECT", "MYAPPS", "RECENT", "BS", "BS_NUM_1", "BS_NUM_2", "BS_NUM_3", "BS_NUM_4", "BS_NUM_5", "BS_NUM_6", "BS_NUM_7", "BS_NUM_8", "BS_NUM_9", "BS_NUM_10", "BS_NUM_11", "BS_NUM_12", "CS1", "CS1_NUM_1", "CS1_NUM_2", "CS1_NUM_3", "CS1_NUM_4", "CS1_NUM_5", "CS1_NUM_6", "CS1_NUM_7", "CS1_NUM_8", "CS1_NUM_9", "CS1_NUM_10", "CS1_NUM_11", "CS1_NUM_12", "CS2", "CS2_NUM_1", "CS2_NUM_2", "CS2_NUM_3", "CS2_NUM_4", "CS2_NUM_5", "CS2_NUM_6", "CS2_NUM_7", "CS2_NUM_8", "CS2_NUM_9", "CS2_NUM_10", "CS2_NUM_11", "CS2_NUM_12", "TER", "TER_NUM_1", "TER_NUM_2", "TER_NUM_3", "TER_NUM_4", "TER_NUM_5", "TER_NUM_6", "TER_NUM_7", "TER_NUM_8", "TER_NUM_9", "TER_NUM_10", "TER_NUM_11", "TER_NUM_12", "3DIGIT_INPUT", "BML_DATA", "JAPAN_DISPLAY", "TELETEXT", "TEXTOPTION", "MAGNIFIER_ZOOM", "SCREEN_REMOT");
+			 foreach($remote_commands as $com){
+				 if ($value == $com){
+					 $this->SendCommand($device_id, '', 'request', $value, null, true);
+				 }
+			 }
+		 }
       } else if ($title == 'command_raw') {
          // Метрика command_raw - отправка "сырых" api-команд на ТВ.
          // Проверим, есть ли у команды параметр.
@@ -790,7 +797,6 @@ class lgwebostv extends module
    function ProcessMessage($message, $device_id)
    {
       $data = json_decode($message, true);
-
       if ($data['type'] != 'ping') {
          // Очень длинные сообщения не будем писать в DebMes-лог.
          if (strlen($message) <= 8192) {
@@ -809,6 +815,8 @@ class lgwebostv extends module
                SQLUpdate('lgwebostv_devices', $device);
             }
             $this->GetInfoOnConnected($device_id);
+			//После успешной авторизации запрашиваем адрес сокета для отправки команд
+			$this->SendCommand($device_id, $device_id, 'request', 'ssap://com.webos.service.networkinput/getPointerInputSocket');
          } else {
             $this->WriteLog('Failed handshake');
          }
@@ -865,7 +873,7 @@ class lgwebostv extends module
                $app['app_id'] = $launchPoints[$i]['id'];
                $app['app_title'] = $launchPoints[$i]['title'];
                $app['app_icon'] = $launchPoints[$i]['icon'];
-               $app['app_miniicon'] = $launchPoints[$i]['miniicon'];
+               $app['app_miniicon'] = isset($launchPoints[$i]['miniicon']) ? $launchPoints[$i]['miniicon'] : "";
                if (in_array($app['app_id'], $inputs)) {
                   $app['app_category'] = 'inputs';
                } else {
@@ -1006,14 +1014,14 @@ class lgwebostv extends module
    {
       $cmd_rec = SQLSelectOne("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID=".(int)$device_id." AND TITLE LIKE '".DBSafe($command)."'");
 
-      if (!$cmd_rec['ID']) {
+      if (!isset($cmd_rec['ID'])) {
          $cmd_rec = array();
          $cmd_rec['TITLE'] = $command;
          $cmd_rec['DEVICE_ID'] = $device_id;
          $cmd_rec['ID'] = SQLInsert('lgwebostv_commands', $cmd_rec);
       }
 
-      $old_value = $cmd_rec['VALUE'];
+      $old_value = isset($cmd_rec['VALUE']) ? $cmd_rec['VALUE'] : 0;
 
       $cmd_rec['VALUE'] = $value;
       $cmd_rec['UPDATED'] = date('Y-m-d H:i:s');
@@ -1025,13 +1033,13 @@ class lgwebostv extends module
       if ($old_value == $value) return;
 
       // Иначе обновляем привязанное свойство.
-      if ($cmd_rec['LINKED_OBJECT'] && $cmd_rec['LINKED_PROPERTY']
+      if (isset($cmd_rec['LINKED_OBJECT']) && isset($cmd_rec['LINKED_PROPERTY'])
                                     && (getGlobal($cmd_rec['LINKED_OBJECT'] . '.' . $cmd_rec['LINKED_PROPERTY']) != $value)) {
          setGlobal($cmd_rec['LINKED_OBJECT'] . '.' . $cmd_rec['LINKED_PROPERTY'], $value, array($this->name => '0'));
       }
 
       // И вызываем привязанный метод.
-      if ($cmd_rec['LINKED_OBJECT'] && $cmd_rec['LINKED_METHOD']) {
+      if (isset($cmd_rec['LINKED_OBJECT']) && isset($cmd_rec['LINKED_METHOD'])) {
          if (!is_array($params)) {
             $params = array();
          }
@@ -1053,15 +1061,17 @@ class lgwebostv extends module
    function ProcessControlCommand($message, $csocket, &$tvList, $cycle_debug = true)
    {
       $control_cmd = json_decode($message);
-
       // Команда
       $cmd = $control_cmd->command;
-
       // ID телевизора
       $dev_id = $control_cmd->device_id;
-
       switch ($cmd) {
          case ('send'):
+			if($control_cmd->remote){ //если это команда для сокета команд
+				$data = json_decode($control_cmd->data, true);
+				$tvList[$dev_id]['SOCKET']->WriteDataRemote($data['uri']);
+				break;
+			}
             $tvList[$dev_id]['SOCKET']->WriteData($control_cmd->data, true);
             break;
          case ('connect'):
@@ -1109,7 +1119,7 @@ class lgwebostv extends module
       }
    }
 
-   function SendCommand($device_id, $prefix, $msgtype, $uri = '', $payload = null)
+   function SendCommand($device_id, $prefix, $msgtype, $uri = '', $payload = null, $remote = false)
    {
       $commandCount = 1;
 
@@ -1125,23 +1135,25 @@ class lgwebostv extends module
          $msg['uri'] = $uri;
       }
 
-      if ($payload) {
+      if (isset($payload)) {
          $msg['payload'] = json_decode($payload, true);
       }
 
       $cmd = json_encode($msg, JSON_UNESCAPED_SLASHES);
 
+
       $this->WriteLog("Outgoing message to TV ID{$device_id}: {$cmd}");
 
-      $this->SendToCycle($device_id, 'send', $cmd);
+      $this->SendToCycle($device_id, 'send', $cmd, $remote);
    }
 
-   function SendToCycle($device_id, $command, $data = '')
+   function SendToCycle($device_id, $command, $data = '', $remote = false)
    {
       $msg = array();
       $msg['command'] = $command;
       $msg['device_id'] = $device_id;
       $msg['data'] = $data;
+	  $msg['remote'] = $remote; 
 
       $cmd = json_encode($msg, JSON_UNESCAPED_SLASHES);
 
@@ -1313,6 +1325,7 @@ class lgwebostv extends module
 
    function GetAppTitleByID($device_id, $app_id)
    {
+	 if(isset($app_id) && $app_id != ''){
       $apps = SQLSelectOne("SELECT APPS FROM lgwebostv_devices WHERE ID='{$device_id}'")['APPS'];
 
       if (!empty($apps)) {
@@ -1331,6 +1344,7 @@ class lgwebostv extends module
       } else {
          return false;
       }
+	 }
    }
 
    function GetChannelIcon($device_id, $channel_id, $channel_type)
