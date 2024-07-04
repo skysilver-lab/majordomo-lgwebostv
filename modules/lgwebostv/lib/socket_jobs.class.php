@@ -13,9 +13,11 @@ class SocketJobs
    private  $debug;
    private  $socket;
    private  $status;
+   private  $remotesocket;
    public   $dataRecived;
    public   $dataToWrite;
    public   $handshaked;
+   public   $remotestatus;
    public   $lastSendMsgTime;
    public   $lastRcvMsgTime;
 
@@ -24,8 +26,9 @@ class SocketJobs
       $this->ip = $ip;
       $this->port = $port;
       $this->debug = $debug;
-
+	  $this->remotestatus = false;
       $this->socket = null;
+	  $this->remotesocket = null;
       $this->dataRecived = '';
       $this->dataToWrite = '';
       $this->handshaked = false;
@@ -159,7 +162,12 @@ class SocketJobs
       if (is_resource($this->getSocket())) {
          stream_socket_shutdown($this->getSocket(), STREAM_SHUT_RDWR);
          fclose($this->getSocket());
+		 if($this->remotestatus !== false){
+			stream_socket_shutdown($this->remotesocket, STREAM_SHUT_RDWR);
+		 }
          $this->socket = null;
+		 $this->remotesocket = null;
+		 $this->remotestatus = false;
          $this->dataToWrite = '';
          $this->dataRecived = '';
          $this->handshaked = false;
@@ -169,7 +177,20 @@ class SocketJobs
          return false;
       }
    }
-
+   
+   function changePort($tv_id){
+	if($this->port == 3000){
+		$device = SQLSelectOne("SELECT * FROM lgwebostv_devices WHERE ID='{$tv_id}'");
+		//Если порт не прописан в адресе
+		if(!strpos($device['IP'], ':')){
+			$this->port = 3001;
+			$device['IP'].= ":3001";
+			SQLUpdate('lgwebostv_devices', $device); //и в базе тоже
+			$this->Ping();
+		}
+	}
+   }
+   
    public function ReadHandle($tv_id)
    {
 	   //ждем 0,05 секунды, иначе есть шанс закрыть порт до того, как начли идти данные
@@ -179,6 +200,8 @@ class SocketJobs
          $this->WriteLog(date('H:i:s') . ' Error: unsuccessful reading from socket or socket resource does not exist.');
          $this->Disconnect();
          $msg[] = '{"type":"ws_close"}';
+		 //Меняем порт на 3001
+		 $this->changePort($tv_id);
       } else {
          // Читаем из готового к чтению сокета без блокировки.
          $data = fread($this->socket, 8192);
@@ -186,17 +209,8 @@ class SocketJobs
             $this->WriteLog(date('H:i:s') . ' Error: data false or empty.');
             $msg[] = '{"type":"ws_close"}';
 			$this->Disconnect();
-			//Если соединение неудачно, менем порт на 3001
-			if($this->port == 3000){
-				$device = SQLSelectOne("SELECT * FROM lgwebostv_devices WHERE ID='{$tv_id}'");
-				//Если порт н епрописан в адресе
-				if(!strpos($device['IP'], ':')){
-					$this->port = 3001;
-					$device['IP'].= ":3001";
-					SQLUpdate('lgwebostv_devices', $device); //и в базе тоже
-					$this->Ping();
-				}
-			}
+			//Если соединение неудачно, меняем порт на 3001
+			$this->changePort($tv_id);
          } else {
             $length = strlen($data);
             $this->WriteLog(date('H:i:s') . " Successful get data from TV {$this->ip} [{$length} bytes].");
@@ -216,13 +230,38 @@ class SocketJobs
                   $this->dataRecived = '';
                   $msg[] = '{"type":"ws_accept"}';
                }
-            } else {
+			} else {
                while ($frame = $this->Decode($this->dataRecived)) {
                   switch ($frame['type']) {
                      case 'text':
                         // Сообщение от ТВ.
                         $this->WriteLog(date('H:i:s') . " Get TEXT type message: {$frame['payload']}");
                         $msg[] = trim($frame['payload']);
+						//Если не подключен сокет удаленных команд, выполняем его подключение и рукопожатие
+						if(!$this->remotestatus || $this->remotestatus == 'error'){
+							$answer = json_decode($msg[0], true);
+							if(isset($answer['payload']['socketPath'])){
+								$context = stream_context_create([
+								 'ssl' => [
+								  'verify_peer_name' => false,
+								  'verify_peer' => false
+								 ]
+								]);
+								$prefix = 'tcp://';
+								if ($this->port == 3001) $prefix = 'ssl://';
+								$this->remotesocket = stream_socket_client($prefix . $this->ip . ':' . $this->port, $errno, $errstr, 1, STREAM_CLIENT_CONNECT, $context);
+								if(!$this->remotesocket){
+									$this->WriteLog(date('H:i:s') . " TV {$this->ip}: remoteCommand websocket NOT connection");
+									$this->remotestatus = "error";
+								} else {
+									$path = substr($answer['payload']['socketPath'], strpos($answer['payload']['socketPath'], "/", 6));
+									fwrite($this->remotesocket, $this->CreateHeader($path));
+									$data = fread($this->remotesocket, 8196);
+									$this->WriteLog(date('H:i:s') . " TV {$this->ip}: remoteCommand websocket connected.");
+									$this->remotestatus = true;
+								}
+							}	
+						}
                      break;
                      case 'ping':
                         // На ping от ТВ отвечаем pong.
@@ -286,13 +325,26 @@ class SocketJobs
          $this->WriteLog(date('H:i:s') . " TV {$this->ip} offline. Data not send.");
       }
    }
+   
+    public function WriteDataRemote($data)
+   {
+      if (!$this->IsOffline()) {
+		 if($data == "CLICK") $cmd = "type:click\n\n";
+		 else $cmd = "type:button\nname:".$data."\n\n";
+         fwrite($this->remotesocket, $this->Encode($cmd));
+		 //$data = fread($this->remotesocket, 8196);
+		 //print_r($this->Decode($data));
+      } else {
+         $this->WriteLog(date('H:i:s') . " TV {$this->ip} offline. Data not send.");
+      }
+   }
 
-   public function CreateHeader()
+   public function CreateHeader($path = "/")
    {
       $key = base64_encode(uniqid());
 
       return
-         "GET / HTTP/1.1\r\n" .
+         "GET ".$path." HTTP/1.1\r\n" .
          "Host: {$this->ip}:{$this->port}\r\n" .
          "pragma: no-cache\r\n" .
          "cache-control: no-cache\r\n" .

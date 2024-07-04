@@ -72,7 +72,7 @@ $tvList = array();
 $tvObj = array();
 
 // Формируем массив заданий.
-if ($tvs[0]['ID']) {
+if (isset($tvs[0]['ID'])) {
    $total = count($tvs);
    echo date('H:i:s') . " $total TVs found" . PHP_EOL;
    for ($i = 0; $i < $total; $i++) {
@@ -121,7 +121,6 @@ while (1) {
 
    if (!empty($tvList)) {
       foreach ($tvList as $tv) {
-
          if ($tv['SOCKET']->IsOffline()) {
             if ($extended_logging) {
                if ($cycle_debug) echo date('H:i:s') . ' TV ' . $tv['SOCKET']->GetIP() . ' socket status = ' . $tv['SOCKET']->GetStatus() . PHP_EOL;
@@ -130,16 +129,16 @@ while (1) {
          }
 
          if ($tv['SOCKET']->IsOnline()) {
-            $sendTimeout = time() - $tv['SOCKET']->lastSendMsgTime;
-            $rcvTimeout  = time() - $tv['SOCKET']->lastRcvMsgTime;
-            if (($sendTimeout >= $ws_ping_period) && ($rcvTimeout >= $ws_ping_period)) {
-               if ($cycle_debug) echo date('H:i:s') . ' Send websocket ping to ' . $tv['SOCKET']->GetIP() . PHP_EOL;
-               $tv['SOCKET']->WriteData('ping', true, 'ping');
-            } else if (($sendTimeout >= 5 && $sendTimeout < $ws_ping_period) && ($rcvTimeout > $ws_ping_period)) {
-               if ($cycle_debug) echo date('H:i:s') . ' Close connection on timeout ' . $tv['SOCKET']->GetIP() . PHP_EOL;
-               $tv['SOCKET']->Disconnect();
-               $lgwebostv_module->IncomingMessageProcessing('{"type":"ws_close"}', $tv['ID']);
-            }
+			$sendTimeout = time() - $tv['SOCKET']->lastSendMsgTime;
+			$rcvTimeout  = time() - $tv['SOCKET']->lastRcvMsgTime;
+			if (($sendTimeout >= $ws_ping_period) && ($rcvTimeout >= $ws_ping_period)) {
+				if ($cycle_debug) echo date('H:i:s') . ' Send websocket ping to ' . $tv['SOCKET']->GetIP() . PHP_EOL;
+				$tv['SOCKET']->WriteData('ping', true, 'ping');
+			} else if (($sendTimeout >= 5 && $sendTimeout < $ws_ping_period) && ($rcvTimeout > $ws_ping_period)) {
+				if ($cycle_debug) echo date('H:i:s') . ' Close connection on timeout ' . $tv['SOCKET']->GetIP() . PHP_EOL;
+				$tv['SOCKET']->Disconnect();
+				$lgwebostv_module->IncomingMessageProcessing('{"type":"ws_close"}', $tv['ID']);
+			}
          }
 
          if ($tv['SOCKET']->GetStatus() == 'DO_CONNECT') {
