@@ -891,8 +891,15 @@ class lgwebostv extends module
          
          if (strpos($data['id'], 'volume_') !== false) {
             // Подписка на громкость.
-            $volume = $data['payload']['volumeStatus']['volume'];
-            $mute = $data['payload']['volumeStatus']['muteStatus'] ? 1 : 0;
+            $ip = SQLSelectOne("SELECT IP FROM lgwebostv_devices WHERE ID='{$device_id}'")['IP'];
+            $port = $this->GetPort($ip)['PORT'];
+            if($port == 3001){
+                $volume = $data['payload']['volumeStatus']['volume'];
+                $mute = $data['payload']['volumeStatus']['muteStatus'] ? 1 : 0;
+            } else {
+                $volume = $data['payload']['volume'];
+                $mute = $data['payload']['muted'] ? 1 : 0;
+            }
             $this->ProcessCommand($device_id, 'volume', $volume);
             $this->ProcessCommand($device_id, 'muted', $mute);
          } else if (strpos($data['id'], 'channel_') !== false) {
