@@ -427,7 +427,7 @@ class lgwebostv extends module
          }
 
          if ($this->tab == 'data') {
-            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('online','command','command_raw','notification','state','state_title','state_icon','power','volume','muted','input','source','app','error') ORDER BY ID");
+            $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('online','command','command_raw','notification','state','state_title','state_icon','power','volume','muted','input','source','app', 'audio_out', 'error') ORDER BY ID");
          } else if ($this->tab == 'channels') {
             $properties = SQLSelect("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID='{$id}' AND TITLE IN ('channel_number','channel_name','channel_id','channels_count','channel_type','channel_icon','program_title','program_description') ORDER BY ID");
          }
@@ -632,21 +632,26 @@ class lgwebostv extends module
                $value = $payload;
             }
          } else if ($value == 'browser') {
+			 $title = 'state';
             if (isset($payload) && $payload != '') {
-               $title = 'state';
                $value = 'com.webos.app.browser|' . $payload;
             } else {
-               $title = 'state';
                $value = 'com.webos.app.browser';
             }
          } else if ($value == 'youtube') {
+			$title = 'state';
             if (isset($payload) && $payload != '') {
-               $title = 'state';
                $value = 'youtube.leanback.v4|' . $payload;
             } else {
-               $title = 'state';
                $value = 'youtube.leanback.v4';
             }
+         } else if ($value == 'audioOut') {
+			$title = 'audio_out';
+            if (isset($payload) && $payload != '') {
+               $value = $payload;
+            } else {
+				$value = 'tv_speaker';
+			}
          } else {
 			 $remote_commands = array("1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "LIST", "AD", "DASH", "MUTE", "VOLUMEUP", "VOLUMEDOWN", "CHANNELUP", "CHANNELDOWN", "HOME", "MENU", "UP", "DOWN", "LEFT", "RIGHT", "CLICK", "BACK", "EXIT", "PROGRAM", "ENTER", "INFO", "RED", "GREEN", "YELLOW", "BLUE", "LIVE_ZOOM", "CC", "PLAY", "PAUSE", "REWIND", "FASTFORWARD", "POWER", "FAVORITES", "RECORD", "FLASHBACK", "QMENU", "GOTOPREV", "GOTONEXT", "3D_MODE", "SAP", "ASPECT_RATIO", "EJECT", "MYAPPS", "RECENT", "BS", "BS_NUM_1", "BS_NUM_2", "BS_NUM_3", "BS_NUM_4", "BS_NUM_5", "BS_NUM_6", "BS_NUM_7", "BS_NUM_8", "BS_NUM_9", "BS_NUM_10", "BS_NUM_11", "BS_NUM_12", "CS1", "CS1_NUM_1", "CS1_NUM_2", "CS1_NUM_3", "CS1_NUM_4", "CS1_NUM_5", "CS1_NUM_6", "CS1_NUM_7", "CS1_NUM_8", "CS1_NUM_9", "CS1_NUM_10", "CS1_NUM_11", "CS1_NUM_12", "CS2", "CS2_NUM_1", "CS2_NUM_2", "CS2_NUM_3", "CS2_NUM_4", "CS2_NUM_5", "CS2_NUM_6", "CS2_NUM_7", "CS2_NUM_8", "CS2_NUM_9", "CS2_NUM_10", "CS2_NUM_11", "CS2_NUM_12", "TER", "TER_NUM_1", "TER_NUM_2", "TER_NUM_3", "TER_NUM_4", "TER_NUM_5", "TER_NUM_6", "TER_NUM_7", "TER_NUM_8", "TER_NUM_9", "TER_NUM_10", "TER_NUM_11", "TER_NUM_12", "3DIGIT_INPUT", "BML_DATA", "JAPAN_DISPLAY", "TELETEXT", "TEXTOPTION", "MAGNIFIER_ZOOM", "SCREEN_REMOT");
 			 foreach($remote_commands as $com){
@@ -707,6 +712,9 @@ class lgwebostv extends module
          $value = (int)$value;
          $value = ($value == 1) ? 'true' : 'false';
          $this->SendCommand($device_id, '', 'request', 'ssap://audio/setMute', '{"mute":' . $value . '}');
+	  } else if ($title == 'audio_out') {
+         // Метрика audio_out - изменение аудиовыхода.
+         $this->SendCommand($device_id, '', 'request', 'ssap://audio/changeSoundOutput', '{"output":"' . $value . '"}');
       } else if ($title == 'notification') {
          // Метрика notification - отображение текстового уведомления на ТВ.
          $this->SendCommand($device_id, '', 'request', 'ssap://system.notifications/createToast', '{"message":"' . $value . '"}');
@@ -889,19 +897,29 @@ class lgwebostv extends module
             SQLUpdate('lgwebostv_devices', $device);
          }
          
+		   if (isset($data['payload']['soundOutput'])) {
+			   //аудиовыход
+			   $audio_out = $data['payload']['soundOutput'];
+			   $this->ProcessCommand($device_id, 'audio_out', $audio_out);
+		   }
+		 
          if (strpos($data['id'], 'volume_') !== false) {
             // Подписка на громкость.
             $ip = SQLSelectOne("SELECT IP FROM lgwebostv_devices WHERE ID='{$device_id}'")['IP'];
-            $port = $this->GetPort($ip)['PORT'];
-            if($port == 3001){
+            if(isset($data['payload']['volumeStatus'])){
                 $volume = $data['payload']['volumeStatus']['volume'];
                 $mute = $data['payload']['volumeStatus']['muteStatus'] ? 1 : 0;
+				$audio_out = $data['payload']['volumeStatus']['soundOutput'];
             } else {
                 $volume = $data['payload']['volume'];
                 $mute = $data['payload']['muted'] ? 1 : 0;
             }
             $this->ProcessCommand($device_id, 'volume', $volume);
             $this->ProcessCommand($device_id, 'muted', $mute);
+		 } else if (strpos($data['id'], 'audioout_') !== false) {
+			 //Подписка на аудиовыход
+			 $audio_out = $data['payload']['soundOutput'];
+			 $this->ProcessCommand($device_id, 'audio_out', $audio_out);
          } else if (strpos($data['id'], 'channel_') !== false) {
             // Подписка на смену каналов.
             $channelId = $data['payload']['channelId'];
@@ -1019,6 +1037,7 @@ class lgwebostv extends module
 
    function ProcessCommand($device_id, $command, $value, $params = 0)
    {
+	   
       $cmd_rec = SQLSelectOne("SELECT * FROM lgwebostv_commands WHERE DEVICE_ID=".(int)$device_id." AND TITLE LIKE '".DBSafe($command)."'");
 
       if (!isset($cmd_rec['ID'])) {
@@ -1040,13 +1059,13 @@ class lgwebostv extends module
       if ($old_value == $value) return;
 
       // Иначе обновляем привязанное свойство.
-      if (isset($cmd_rec['LINKED_OBJECT']) && isset($cmd_rec['LINKED_PROPERTY'])
+      if (!empty($cmd_rec['LINKED_OBJECT']) && !empty($cmd_rec['LINKED_PROPERTY'])
                                     && (getGlobal($cmd_rec['LINKED_OBJECT'] . '.' . $cmd_rec['LINKED_PROPERTY']) != $value)) {
          setGlobal($cmd_rec['LINKED_OBJECT'] . '.' . $cmd_rec['LINKED_PROPERTY'], $value, array($this->name => '0'));
       }
 
       // И вызываем привязанный метод.
-      if (isset($cmd_rec['LINKED_OBJECT']) && isset($cmd_rec['LINKED_METHOD'])) {
+      if (!empty($cmd_rec['LINKED_OBJECT']) && !empty($cmd_rec['LINKED_METHOD'])) {
          if (!is_array($params)) {
             $params = array();
          }
@@ -1145,9 +1164,8 @@ class lgwebostv extends module
       if (isset($payload)) {
          $msg['payload'] = json_decode($payload, true);
       }
-
+	  
       $cmd = json_encode($msg, JSON_UNESCAPED_SLASHES);
-
 
       $this->WriteLog("Outgoing message to TV ID{$device_id}: {$cmd}");
 
@@ -1210,6 +1228,7 @@ class lgwebostv extends module
    function GetInfoOnConnected($device_id)
    {
       $this->SendCommand($device_id, 'volume_', 'subscribe', 'ssap://audio/getVolume');
+	  $this->SendCommand($device_id, 'audioout_', 'subscribe', 'ssap://audio/getSoundOutput');
       $this->SendCommand($device_id, "foreground_app_", "subscribe", "ssap://com.webos.applicationManager/getForegroundAppInfo");
       $this->SendCommand($device_id, 'sw_info_', 'request', 'ssap://com.webos.service.update/getCurrentSWInformation');
       $this->SendCommand($device_id, 'sys_info_', 'request', 'ssap://system/getSystemInfo');

@@ -71,6 +71,7 @@
                   <tr><td><b>program_title</b></td><td>Название текущей передачи на канале.</td><td>Название передачи</td><td>Чтение</td></tr>
                   <tr><td><b>program_description</b></td><td>Описание текущей передачи.</td><td>Описание передачи</td><td>Чтение</td></tr>
                   <tr><td><b>error</b></td><td>Сведения о последней возникшей ошибке.</td><td>Текст ошибки</td><td>Чтение</td></tr>
+				  <tr><td><b>audio_out</b></td><td>Текущий аудиовыход</td><td>Название аудиовыхода. Значения: "tv_speaker", "external_speaker", "external_optical", "external_arc", "lineout", "headphone", "tv_external_speaker", "tv_speaker_headphone", "bt_soundbar"</td><td>Чтение и запись</td></tr>
                </tbody>
             </table>
             </div>
@@ -113,6 +114,7 @@
                   <tr><td><b>forward</b></td><td>Управление медиа. Перемотать вперед.</td>
                   <tr><td><b>browser</b></td><td>Запустить приложение <b>Браузер</b>. Опционально через разделитель <b>|</b> (вертикальный слеш) можно указать ссылку на сайт (URL). Например, <i>browser|ya.ru</i> или <i>browser|https://connect.smartliving.ru</i></td>
                   <tr><td><b>youtube</b></td><td>Запустить приложение <b>Youtube</b>. Опционально через разделитель <b>|</b> (вертикальный слеш) можно указать ссылку на видео (URL) или идентификатор видео (VIDID). Например, <i>youtube|https://www.youtube.com/watch?v=UR2qXwR2vNE</i> или <i>youtube|3TeU9K8z9XA</i> Также поддерживаются сокращенные форматы ссылок.</td>
+				  <tr><td><b>audioOut</b></td><td>Выбрать аудиовыход. Аудиовыход (возможные значения можно посмотреть в разделе <b>"Описание метрик"</b>) указывается через разделитель <b>|</b> (вертикальный слеш). <br>Например, <i>audioOut|"external_optical"</i>. Если вызвать без разделителя, будет включен динамик ТВ.</td>
                </tbody>
             </table>
 			<b>Дополнительные команды (кнопки пульта) отправляются без кавычек:</b><br>
